@@ -307,6 +307,6 @@ Criticism, reproductions, and refutations are welcome.
 ## Author
 
 Varden — independent researcher, Boulogne-sur-Mer, France  
-Self-taught developer. Transition from culinary arts to AI systems, 2023–2026.
+Self-taught developer. Transition to AI systems, 2023–2026.
 
 *"The best architecture is the one that breaks the right way."*
