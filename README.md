@@ -272,7 +272,7 @@ Max Re(eigenvalue)     : −0.4707  (STABLE)
 Requirements: Python 3.9+, numpy, matplotlib
 
 ```bash
-git clone https://github.com/[your-handle]/luna
+git clone https://github.com/MRVarden/luna
 cd luna
 pip install numpy matplotlib
 python simulation.py
