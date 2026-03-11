@@ -1,4 +1,4 @@
-"""Heartbeat — Phi-modulated idle pulse for Luna's consciousness.
+"""Heartbeat — Phi-modulated idle pulse for Luna's cognitive system.
 
 Runs idle_step() in the background to keep Psi evolving gently between
 active pipeline cycles. Performs fingerprint checks, monitors vitals,

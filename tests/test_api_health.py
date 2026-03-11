@@ -22,7 +22,7 @@ def client_with_engine():
     """TestClient with a mock orchestrator and engine."""
     orch = MagicMock()
     orch.engine.get_status.return_value = {
-        "health_phase": "SOLID",
+        "phase": "SOLID",
         "health_score": 0.85,
     }
     app = create_app(orchestrator=orch)

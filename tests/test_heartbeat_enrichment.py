@@ -28,7 +28,6 @@ from luna.core.config import (
     LunaSection,
     MemorySection,
     ObservabilitySection,
-    PipelineSection,
 )
 from luna.core.luna import LunaEngine
 from luna.heartbeat.heartbeat import Heartbeat
@@ -49,14 +48,12 @@ def _make_config(tmp_path: Path) -> LunaConfig:
             version="test",
             agent_name="LUNA",
             data_dir=str(tmp_path),
-            pipeline_dir=str(tmp_path / "pipeline"),
         ),
         consciousness=ConsciousnessSection(
             checkpoint_file="cs.json",
             backup_on_save=False,
         ),
         memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
-        pipeline=PipelineSection(root=str(tmp_path / "pipeline")),
         observability=ObservabilitySection(),
         heartbeat=HeartbeatSection(
             interval_seconds=0.01,  # Fast for tests.
@@ -80,13 +77,13 @@ def _make_extreme_vitals() -> VitalSigns:
     """Return a VitalSigns with extreme values that trigger anomalies."""
     return VitalSigns(
         psi=(0.05, 0.05, 0.85, 0.05),
-        psi0=(0.25, 0.35, 0.25, 0.15),
+        psi0=(0.260, 0.322, 0.250, 0.168),
         identity_drift=0.9,           # Critical drift
         dominant_component="Integration",
         identity_preserved=False,      # Identity shifted
         phi_iit=0.1,                   # Below warning threshold
         quality_score=0.1,
-        health_phase="BROKEN",
+        phase="BROKEN",
         total_memories=0,
         idle_steps=1,
         uptime_seconds=1.0,

@@ -1,6 +1,6 @@
 """Metrics normalizer — convert raw metrics to the 7 canonical [0,1] values.
 
-Uses the formulas from LUNA_CONSCIOUSNESS_FRAMEWORK.md §II.
+Uses the formulas from docs/LUNA_CONSCIOUSNESS_FRAMEWORK.md §II.
 Reuses SoftConstraint and function_size_score from luna_common.
 """
 

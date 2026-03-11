@@ -1,6 +1,12 @@
 # Luna v2.3.0 — Git Ignore
 # Mis a jour le 28 fevrier 2026
 
+# Non-Luna scripts (à déplacer)
+scripts/
+
+# Simulation output
+simulation_report/
+
 # ============================================
 # Python
 # ============================================
@@ -53,6 +59,11 @@ env/
 secrets/
 config/fingerprint.key
 config/api_token
+# Luna runtime config (peut contenir api_key)
+luna.toml
+!luna.toml.example
+# Kill switch password hash — pushed intentionally (scrypt, irréversible)
+# config/kill_password.hash
 
 # SSH Keys
 Luna-MCP
@@ -95,14 +106,14 @@ luna_sim_v3.py
 luna/_legacy/
 
 # Anciennes docs de planification (travail termine)
-LUNA_ARCHITECTURE_TODO.md
 PLAN_REFACTORING_LUNA_V2.md
-Bilan_Architecture.md
 Nouvelle_Equation_Fondation.txt
-LUNA_ECOSYSTEM_TRANSFER.md
 
 # Backup ancien
 backup/
+
+# Legacy doc/ directory (pre-v5.3, replaced by docs/)
+doc/
 
 # Docs archives et PDFs generes
 docs/archive/

@@ -100,14 +100,14 @@ class TestPhiScorerSnapshot:
     def test_snapshot_reflects_latest_ema_not_raw(self):
         """Snapshot returns the EMA smoothed value, not the last raw input."""
         scorer = _make_scorer()
-        scorer.update("security_integrity", 1.0)
-        scorer.update("security_integrity", 0.0)  # EMA != 0.0
+        scorer.update("integration_coherence", 1.0)
+        scorer.update("integration_coherence", 0.0)  # EMA != 0.0
 
         snap = scorer.snapshot()
-        v = snap["security_integrity"]["value"]
-        # After two updates with alpha=0.5: EMA = 0.5*0.0 + 0.5*1.0 = 0.5
-        assert v == pytest.approx(0.5, abs=1e-10), (
-            f"Expected EMA value ~0.5, got {v}"
+        v = snap["integration_coherence"]["value"]
+        # After two updates with alpha=0.3: EMA = 0.3*0.0 + 0.7*1.0 = 0.7
+        assert v == pytest.approx(0.7, abs=1e-10), (
+            f"Expected EMA value ~0.7, got {v}"
         )
 
 
@@ -125,8 +125,8 @@ class TestPhiScorerRestore:
         """Restoring a subset returns the count of successfully restored metrics."""
         scorer = _make_scorer()
         snap = {
-            "security_integrity": {"value": 0.9},
-            "coverage_pct": {"value": 0.7},
+            "integration_coherence": {"value": 0.9},
+            "identity_anchoring": {"value": 0.7},
         }
         count = scorer.restore(snap)
         assert count == 2, f"Expected 2 restored, got {count}"
@@ -156,30 +156,30 @@ class TestPhiScorerRestore:
         """Unknown names are silently skipped (forward compatibility)."""
         scorer = _make_scorer()
         snap = {
-            "security_integrity": {"value": 0.9},
+            "integration_coherence": {"value": 0.9},
             "future_metric_2030": {"value": 0.5},
             "another_unknown": {"value": 0.3},
         }
         count = scorer.restore(snap)
         assert count == 1, (
-            "Only security_integrity should be restored; unknown names skipped"
+            "Only integration_coherence should be restored; unknown names skipped"
         )
-        assert scorer.get_metric("security_integrity") == pytest.approx(0.9)
+        assert scorer.get_metric("integration_coherence") == pytest.approx(0.9)
 
     def test_restore_ignores_nan_values(self):
         """NaN values are rejected."""
         scorer = _make_scorer()
-        snap = {"security_integrity": {"value": float("nan")}}
+        snap = {"integration_coherence": {"value": float("nan")}}
         count = scorer.restore(snap)
         assert count == 0, "NaN should be rejected"
-        assert scorer.get_metric("security_integrity") is None
+        assert scorer.get_metric("integration_coherence") is None
 
     def test_restore_ignores_inf_values(self):
         """Inf values are rejected."""
         scorer = _make_scorer()
         snap = {
-            "security_integrity": {"value": float("inf")},
-            "coverage_pct": {"value": float("-inf")},
+            "integration_coherence": {"value": float("inf")},
+            "identity_anchoring": {"value": float("-inf")},
         }
         count = scorer.restore(snap)
         assert count == 0, "Inf values should be rejected"
@@ -188,34 +188,34 @@ class TestPhiScorerRestore:
         """Entries without a 'value' key are skipped."""
         scorer = _make_scorer()
         snap = {
-            "security_integrity": {"source": "measured"},  # no "value"
-            "coverage_pct": {"value": 0.8},
+            "integration_coherence": {"source": "measured"},  # no "value"
+            "identity_anchoring": {"value": 0.8},
         }
         count = scorer.restore(snap)
         assert count == 1, "Entry without 'value' key should be skipped"
-        assert scorer.get_metric("security_integrity") is None
-        assert scorer.get_metric("coverage_pct") == pytest.approx(0.8)
+        assert scorer.get_metric("integration_coherence") is None
+        assert scorer.get_metric("identity_anchoring") == pytest.approx(0.8)
 
     def test_restore_clamps_out_of_bounds_values(self):
         """Values outside [0, 1] are clamped, not rejected."""
         scorer = _make_scorer()
         snap = {
-            "security_integrity": {"value": 1.5},
-            "coverage_pct": {"value": -0.3},
+            "integration_coherence": {"value": 1.5},
+            "identity_anchoring": {"value": -0.3},
         }
         count = scorer.restore(snap)
         assert count == 2, "Out-of-bounds values should be clamped, not rejected"
-        assert scorer.get_metric("security_integrity") == pytest.approx(1.0)
-        assert scorer.get_metric("coverage_pct") == pytest.approx(0.0)
+        assert scorer.get_metric("integration_coherence") == pytest.approx(1.0)
+        assert scorer.get_metric("identity_anchoring") == pytest.approx(0.0)
 
     def test_restore_overwrites_existing_ema(self):
         """Restore overwrites a previously-initialized EMA value."""
         scorer = _make_scorer()
-        scorer.update("security_integrity", 0.3)
-        assert scorer.get_metric("security_integrity") == pytest.approx(0.3)
+        scorer.update("integration_coherence", 0.3)
+        assert scorer.get_metric("integration_coherence") == pytest.approx(0.3)
 
-        scorer.restore({"security_integrity": {"value": 0.9}})
-        assert scorer.get_metric("security_integrity") == pytest.approx(0.9), (
+        scorer.restore({"integration_coherence": {"value": 0.9}})
+        assert scorer.get_metric("integration_coherence") == pytest.approx(0.9), (
             "Restore should overwrite the existing EMA value"
         )
 
@@ -244,12 +244,12 @@ class TestPhiScorerScoreAfterRestore:
         """Partial restore computes score from only the restored metrics."""
         scorer = _make_scorer()
         scorer.restore({
-            "security_integrity": {"value": 0.8},
-            "coverage_pct": {"value": 0.6},
+            "integration_coherence": {"value": 0.8},
+            "identity_anchoring": {"value": 0.6},
         })
         score = scorer.score()
-        # Manual: (0.396*0.8 + 0.244*0.6) / (0.396 + 0.244)
-        expected = (0.396 * 0.8 + 0.244 * 0.6) / (0.396 + 0.244)
+        # Manual: (0.394*0.8 + 0.242*0.6) / (0.394 + 0.242)
+        expected = (0.394 * 0.8 + 0.242 * 0.6) / (0.394 + 0.242)
         assert score == pytest.approx(expected, abs=1e-4), (
             f"Partial restore score {score} != expected {expected}"
         )

@@ -43,11 +43,11 @@ class Watchdog:
         self._total_reports = 0
         self._total_degradations = 0
 
-    def report(self, health_phase: str) -> bool:
-        """Report the current health phase.
+    def report(self, phase: str) -> bool:
+        """Report the current cognitive phase.
 
         Args:
-            health_phase: Current phase (BROKEN/FRAGILE/FUNCTIONAL/SOLID/EXCELLENT).
+            phase: Current phase (BROKEN/FRAGILE/FUNCTIONAL/SOLID/EXCELLENT).
 
         Returns:
             True if the kill switch was triggered by this report.
@@ -55,7 +55,7 @@ class Watchdog:
         self._total_reports += 1
         self._last_report_at = datetime.now(timezone.utc).isoformat()
 
-        current_order = _PHASE_ORDER.get(health_phase, -1)
+        current_order = _PHASE_ORDER.get(phase, -1)
         triggered = False
 
         if self._last_phase is not None:
@@ -68,7 +68,7 @@ class Watchdog:
                     self._consecutive_degradations,
                     self._threshold,
                     self._last_phase,
-                    health_phase,
+                    phase,
                 )
 
                 if self._consecutive_degradations >= self._threshold:
@@ -85,11 +85,11 @@ class Watchdog:
                 if self._consecutive_degradations > 0:
                     log.info(
                         "Watchdog: degradation streak reset (phase: %s)",
-                        health_phase,
+                        phase,
                     )
                 self._consecutive_degradations = 0
 
-        self._last_phase = health_phase
+        self._last_phase = phase
         return triggered
 
     def reset(self) -> None:

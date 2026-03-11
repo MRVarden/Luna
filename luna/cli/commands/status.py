@@ -31,7 +31,6 @@ def status(
         typer.echo(f"Agent: {status_data.get('agent_name', '?')}")
         typer.echo(f"Phase: {status_data.get('phase', '?')}")
         typer.echo(f"Step count: {status_data.get('step_count', 0)}")
-        typer.echo(f"Health phase: {status_data.get('health_phase', '?')}")
         typer.echo(f"Quality score: {status_data.get('quality_score', 0):.4f}")
         typer.echo(f"PHI IIT: {status_data.get('phi_iit', 0):.4f}")
         dom = status_data.get('dominant_component', '?')

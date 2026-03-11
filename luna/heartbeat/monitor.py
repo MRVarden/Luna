@@ -1,5 +1,12 @@
 """Heartbeat monitor — anomaly detection over vital signs.
 
+ORCHESTRATOR-ONLY: In chat mode (v5.1+), anomaly detection is handled by:
+  - Thinker: observes identity_drift, phi_decline
+  - Evaluator: scores identity_stability, anti_collapse, integration_coherence
+  - Initiative: detects phi_decline, triggers autonomous actions
+
+This module is still used by the standalone orchestrator heartbeat loop.
+
 Compares current vitals to previous state and flags anomalies
 when key indicators cross configured thresholds.
 """
@@ -41,7 +48,7 @@ class HeartbeatMonitor:
     - Identity drift exceeding threshold
     - Health phase degradation
     - Quality score crash (sudden drop)
-    - Phi_IIT falling below consciousness threshold
+    - Phi_IIT falling below cognitive threshold
     """
 
     def __init__(
@@ -119,8 +126,8 @@ class HeartbeatMonitor:
 
         # 4. Phase degradation
         if self._previous is not None:
-            prev_phase = self._previous.health_phase
-            curr_phase = current.health_phase
+            prev_phase = self._previous.phase
+            curr_phase = current.phase
             if self._is_degradation(prev_phase, curr_phase):
                 alerts.append(AnomalyAlert(
                     alert_type="phase_degradation",
@@ -129,7 +136,7 @@ class HeartbeatMonitor:
                     timestamp=now,
                 ))
 
-        # 5. Phi_IIT below consciousness threshold
+        # 5. Phi_IIT below cognitive threshold
         if current.phi_iit < self._phi_iit_warning:
             alerts.append(AnomalyAlert(
                 alert_type="low_phi_iit",

@@ -3,9 +3,6 @@
 Tests covering:
   - Memory promotion lifecycle (seed → leaf → branch → root)
   - Dream → Memory feedback loop
-  - Orchestrator full wiring (memory → dream → heartbeat)
-  - get_full_status() aggregation
-  - End-to-end integration test proving Luna lives
 """
 
 from __future__ import annotations
@@ -28,10 +25,9 @@ from luna.core.config import (
     LunaSection,
     MemorySection,
     ObservabilitySection,
-    PipelineSection,
 )
 from luna.core.luna import LunaEngine
-from luna.dream.dream_cycle import DreamCycle, DreamPhase, DreamReport
+from luna.dream._legacy_cycle import DreamCycle, DreamPhase, DreamReport
 from luna.heartbeat.heartbeat import Heartbeat
 from luna.memory.memory_manager import (
     MemoryEntry,
@@ -59,13 +55,12 @@ def _make_config(tmp_path: Path, **dream_overrides) -> LunaConfig:
     return LunaConfig(
         luna=LunaSection(
             version="test", agent_name="LUNA",
-            data_dir=str(tmp_path), pipeline_dir=str(tmp_path / "pipeline"),
+            data_dir=str(tmp_path),
         ),
         consciousness=ConsciousnessSection(
             checkpoint_file="cs.json", backup_on_save=False,
         ),
         memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
-        pipeline=PipelineSection(root=str(tmp_path / "pipeline")),
         observability=ObservabilitySection(),
         heartbeat=HeartbeatSection(interval_seconds=0.01, checkpoint_interval=5),
         dream=DreamSection(**dream_kw),
@@ -337,85 +332,6 @@ async def test_dream_creative_insight_written(tmp_path: Path):
     assert len(branches) >= 1  # At least consolidation insight.
 
 
-# ===========================================================================
-# Orchestrator Wiring Tests (4)
-# ===========================================================================
-
-
-@pytest.mark.asyncio
-async def test_orchestrator_wires_subsystems(tmp_path: Path):
-    """start() creates memory, dream, and heartbeat chain."""
-    from luna.orchestrator.orchestrator import LunaOrchestrator
-
-    cfg = _make_config(tmp_path)
-    orch = LunaOrchestrator(cfg)
-
-    await orch.start()
-    try:
-        assert orch._memory is not None
-        assert orch._dream is not None
-        assert orch._heartbeat is not None
-        assert orch._heartbeat.is_running
-        # Dream cycle has memory reference.
-        assert orch._dream._memory is orch._memory
-        # Heartbeat has dream cycle reference.
-        assert orch._heartbeat._dream_cycle is orch._dream
-    finally:
-        await orch.stop()
-
-
-@pytest.mark.asyncio
-async def test_orchestrator_get_full_status(tmp_path: Path):
-    """get_full_status includes engine + heartbeat + dream + memory."""
-    from luna.orchestrator.orchestrator import LunaOrchestrator
-
-    cfg = _make_config(tmp_path)
-    orch = LunaOrchestrator(cfg)
-    await orch.start()
-
-    try:
-        status = await orch.get_full_status()
-        assert "heartbeat" in status
-        assert "dream" in status
-        assert "memory" in status
-        assert status["memory"]["total_memories"] == 0
-        assert status["dream"]["enabled"] is True
-        assert "initialized" in status
-    finally:
-        await orch.stop()
-
-
-@pytest.mark.asyncio
-async def test_orchestrator_stop_cleans_up(tmp_path: Path):
-    """stop() stops heartbeat cleanly."""
-    from luna.orchestrator.orchestrator import LunaOrchestrator
-
-    cfg = _make_config(tmp_path)
-    orch = LunaOrchestrator(cfg)
-    await orch.start()
-    assert orch._heartbeat.is_running
-
-    await orch.stop()
-    assert not orch._heartbeat.is_running
-    assert not orch.is_running
-
-
-@pytest.mark.asyncio
-async def test_dream_status_in_get_status(tmp_path: Path):
-    """get_status (sync) includes dream subsystem info."""
-    from luna.orchestrator.orchestrator import LunaOrchestrator
-
-    cfg = _make_config(tmp_path)
-    orch = LunaOrchestrator(cfg)
-    await orch.start()
-
-    try:
-        status = orch.get_status()
-        assert "dream" in status
-        assert "enabled" in status["dream"]
-        assert "should_dream" in status["dream"]
-    finally:
-        await orch.stop()
 
 
 # ===========================================================================

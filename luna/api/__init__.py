@@ -1,6 +1,6 @@
 """API module — FastAPI REST interface on 127.0.0.1:8618.
 
-Provides endpoints for health, consciousness, metrics, heartbeat,
+Provides endpoints for health, cognitive state, metrics, heartbeat,
 dream, safety, fingerprint, and memory subsystems.
 """
 

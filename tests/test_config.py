@@ -1,7 +1,7 @@
 """Tests for luna.core.config.LunaConfig.
 
 LunaConfig loads luna.toml and provides typed access to all configuration
-sections: luna, consciousness, memory, pipeline, observability, heartbeat.
+sections: luna, consciousness, memory, observability, heartbeat.
 
 NOTE: This module is being implemented by SayOhMy (Phase 1).
 Tests use pytest.importorskip so they are marked SKIP (not ERROR)
@@ -49,7 +49,6 @@ def minimal_toml(tmp_path):
 version = "2.2.0-test"
 agent_name = "LUNA"
 data_dir = "memory_fractal"
-pipeline_dir = "pipeline"
 
 [consciousness]
 checkpoint_file = "memory_fractal/consciousness_state_v2.json"
@@ -59,11 +58,6 @@ backup_on_save = true
 fractal_root = "memory_fractal"
 levels = ["seeds", "roots", "branches", "leaves"]
 max_memories_per_level = 500
-
-[pipeline]
-root = "pipeline"
-poll_interval_seconds = 1.0
-timeout_seconds = 300
 
 [observability]
 log_level = "INFO"
@@ -133,10 +127,6 @@ class TestConfigSections:
     def test_has_memory_section(self, config):
         """Config has a [memory] section."""
         assert hasattr(config, "memory"), "Config missing [memory] section"
-
-    def test_has_pipeline_section(self, config):
-        """Config has a [pipeline] section."""
-        assert hasattr(config, "pipeline"), "Config missing [pipeline] section"
 
     def test_has_observability_section(self, config):
         """Config has an [observability] section."""
@@ -224,37 +214,7 @@ class TestConfigMemoryValues:
 
 
 # ═══════════════════════════════════════════════════════════════
-#  VI. PIPELINE SECTION VALUES
-# ═══════════════════════════════════════════════════════════════
-
-class TestConfigPipelineValues:
-    """Verify [pipeline] section."""
-
-    def test_poll_interval_positive(self, config):
-        """poll_interval_seconds should be a positive number."""
-        pipe = config.pipeline
-        interval = getattr(pipe, "poll_interval_seconds", None)
-        assert interval is not None and interval > 0
-
-    def test_timeout_positive(self, config):
-        """timeout_seconds should be a positive number."""
-        pipe = config.pipeline
-        timeout = getattr(pipe, "timeout_seconds", None)
-        assert timeout is not None and timeout > 0
-
-    def test_timeout_greater_than_poll(self, config):
-        """Timeout should be much larger than poll interval."""
-        pipe = config.pipeline
-        interval = getattr(pipe, "poll_interval_seconds", None)
-        timeout = getattr(pipe, "timeout_seconds", None)
-        if interval and timeout:
-            assert timeout > interval, (
-                f"timeout ({timeout}) should be > poll_interval ({interval})"
-            )
-
-
-# ═══════════════════════════════════════════════════════════════
-#  VII. DEFAULT VALUES
+#  VI. DEFAULT VALUES
 # ═══════════════════════════════════════════════════════════════
 
 class TestConfigDefaults:

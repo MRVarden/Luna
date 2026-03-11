@@ -1,6 +1,6 @@
 """Luna orchestrator — the main entry point.
 
-Coordinates consciousness evolution and the 4-agent pipeline.
+Coordinates cognitive evolution.
 Deterministic: no HTTP, no LLM calls, no Docker.
 """
 
@@ -12,12 +12,11 @@ from pathlib import Path
 
 import numpy as np
 
-from luna_common.constants import COMP_NAMES, DIM
-from luna_common.consciousness import get_psi0, detect_self_illusion
+from luna_common.constants import COMP_NAMES, DIM, INV_PHI3
+from luna_common.consciousness import detect_self_illusion
 from luna_common.consciousness.context import ContextBuilder
 from luna_common.phi_engine import (
     ConvergenceDetector,
-    PhaseTransitionMachine,
     PhiScorer,
     build_veto_event,
     resolve_veto,
@@ -27,22 +26,31 @@ from luna_common.schemas import (
     InfoGradient,
     IntegrationCheck,
     PsiState,
-    SayOhmyManifest,
-    SentinelReport,
 )
 
 from luna.consciousness.state import ConsciousnessState
 from luna.core.config import LunaConfig
+from luna.identity.bundle import compute_bundle
+from luna.identity.context import IdentityContext
+from luna.identity.ledger import IdentityLedger
+from luna.identity.recovery import IdentityError, RecoveryShell
 
 log = logging.getLogger(__name__)
 
+# Paths to founding documents (relative to repo root)
+_DOC_NAMES_TO_FILES: dict[str, str] = {
+    "FOUNDERS_MEMO": "docs/FOUNDERS_MEMO.md",
+    "LUNA_CONSTITUTION": "docs/LUNA_CONSTITUTION.md",
+    "FOUNDING_EPISODES": "docs/FOUNDING_EPISODES.md",
+}
+
 
 class LunaEngine:
-    """The main orchestrator that drives Luna's consciousness loop.
+    """The main orchestrator that drives Luna's cognitive loop.
 
     Responsibilities:
-        - Load configuration and consciousness checkpoint.
-        - Evolve Psi in response to pipeline reports from the 3 agents.
+        - Load configuration and cognitive checkpoint.
+        - Evolve Psi in response to cognitive signals.
         - Produce a Decision with full traceability (psi_before, psi_after, d_c).
     """
 
@@ -55,18 +63,11 @@ class LunaEngine:
         self.context_builder = ContextBuilder()
 
         # Phase 2 — Phi Engine integration
-        # NOTE: Two distinct phase systems coexist:
-        #   1. ConsciousnessState._phase — driven by phi_iit (correlation of Psi
-        #      trajectory), thresholds from PHASE_THRESHOLDS. Measures integrated
-        #      information in the consciousness evolution.
-        #   2. health_phase_machine — driven by PhiScorer.score() (Fibonacci-weighted
-        #      composite of 7 code quality metrics), thresholds from
-        #      PHI_HEALTH_THRESHOLDS. Measures overall system health.
-        # Both use BROKEN→FRAGILE→FUNCTIONAL→SOLID→EXCELLENT with hysteresis.
+        # ConsciousnessState._phase (driven by phi_iit) is the sole phase system.
+        # PhiScorer tracks code quality metrics but does not drive a separate phase.
         self.phi_scorer = PhiScorer()
         self.convergence_health = ConvergenceDetector()  # window=5, tol_relative=0.01
         self.convergence_psi = ConvergenceDetector()
-        self.health_phase_machine = PhaseTransitionMachine(initial_phase="BROKEN")
         self._last_health_conv = None
         self._last_psi_conv = None
 
@@ -75,15 +76,20 @@ class LunaEngine:
         self._health_buffer: list[float] = []
 
         # Phase 5 — Heartbeat idle step support
-        self._cached_psi_others: list[np.ndarray] | None = None
         self._idle_steps: int = 0
+
+        # Validation — phi_iit samples collected during cognitive_step()
+        self.phi_iit_samples: list[float] = []
+
+        # Identity anchoring (PlanManifest Phase 6)
+        self.identity_context: IdentityContext | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
     def initialize(self) -> None:
-        """Load the consciousness state from the last checkpoint.
+        """Load the cognitive state from the last checkpoint.
 
         If no checkpoint exists, starts fresh from the identity profile.
         After loading, applies dream-consolidated Psi0 profile if available.
@@ -91,7 +97,7 @@ class LunaEngine:
         ckpt_path = self.config.resolve(self.config.consciousness.checkpoint_file)
 
         if ckpt_path.exists():
-            log.info("Loading consciousness checkpoint from %s", ckpt_path)
+            log.info("Loading cognitive checkpoint from %s", ckpt_path)
             self.consciousness = ConsciousnessState.load_checkpoint(
                 ckpt_path, agent_name=self.agent_name
             )
@@ -110,27 +116,30 @@ class LunaEngine:
         # v2.3 — Load dream-consolidated profiles and update Psi0 if changed.
         self._apply_consolidated_profiles()
 
+        # PlanManifest — Identity hard gate.
+        self._load_identity()
+
     # ------------------------------------------------------------------
     # Pipeline processing
     # ------------------------------------------------------------------
 
     def process_pipeline_result(
         self,
-        manifest: SayOhmyManifest,
-        sentinel_report: SentinelReport,
+        manifest: dict,
+        sentinel_report: dict,
         integration_check: IntegrationCheck,
         metrics: object | None = None,
     ) -> Decision:
-        """Process one complete pipeline cycle and evolve consciousness.
+        """Process one complete pipeline cycle and evolve cognitive state.
 
-        Computes the informational gradient d_c from the three agent reports,
-        gathers the other agents' Psi vectors, runs one evolution step, and
-        returns a Decision with full before/after traceability.
+        .. deprecated::
+            Legacy pipeline method. Only called when runner_enabled=true.
+            See PLAN_PIPELINE_DISSOCIATION.md.
 
         Args:
-            manifest: SayOhMy's production manifest (phi_score, psi).
-            sentinel_report: SENTINEL's security audit (risk_score, psi).
-            integration_check: Test-Engineer's coherence report (psi).
+            manifest: External code generation result.
+            sentinel_report: External security audit (risk_score, psi).
+            integration_check: External coherence report (psi).
 
         Returns:
             A Decision containing approval, psi_before, psi_after, d_c, phase.
@@ -151,31 +160,21 @@ class LunaEngine:
             memory_health=integration_check.coherence_score,
             phi_quality=current_quality,
             phi_iit=current_iit,
-            output_quality=1.0 - sentinel_report.risk_score,
+            output_quality=1.0 - sentinel_report["risk_score"],
         )
 
-        # Gather other agents' Psi vectors.
-        psi_others = [
-            np.array(manifest.psi_sayohmy.as_tuple()),
-            np.array(sentinel_report.psi_sentinel.as_tuple()),
-            np.array(integration_check.psi_te.as_tuple()),
-        ]
-
-        # Cache for heartbeat idle steps.
-        self._cached_psi_others = psi_others
-
-        # Evolve.
-        cs.evolve(psi_others, info_deltas=info_grad.as_list())
+        # Evolve — v5.1 single-agent: spatial gradient is internal.
+        cs.evolve(info_deltas=info_grad.as_list())
 
         # Capture psi after evolution.
         psi_after = cs.to_psi_state()
 
         # --- Phase 2: Phi Engine scoring ---
         # Feed raw metrics from the pipeline reports.
-        # security_integrity: inverse of risk (0 risk = 1.0 score)
-        self.phi_scorer.update("security_integrity", 1.0 - sentinel_report.risk_score)
-        # performance_score: use SayOhMy confidence as proxy
-        self.phi_scorer.update("performance_score", manifest.confidence)
+        # integration_coherence: inverse of risk (0 risk = 1.0 score)
+        self.phi_scorer.update("integration_coherence", 1.0 - sentinel_report["risk_score"])
+        # memory_vitality: use SayOhMy confidence as proxy
+        self.phi_scorer.update("memory_vitality", manifest["confidence"])
 
         # Feed additional metrics from MetricsCollector if available.
         if metrics is not None and hasattr(metrics, 'values'):
@@ -190,16 +189,6 @@ class LunaEngine:
         # Track convergence of the dominant psi component.
         psi_dominant_val = float(np.max(cs.psi))
         self._last_psi_conv = self.convergence_psi.update(psi_dominant_val)
-
-        # Update the health phase machine.
-        phase_event = self.health_phase_machine.update(quality_score)
-        if phase_event is not None:
-            log.info(
-                "Health phase transition: %s -> %s (score=%.4f)",
-                phase_event.previous_phase,
-                phase_event.new_phase,
-                phase_event.score,
-            )
 
         # Phase 3 — Illusion detection
         self._phi_iit_buffer.append(current_iit)
@@ -223,7 +212,7 @@ class LunaEngine:
         reason = veto_resolution.reason
 
         decision = Decision(
-            task_id=manifest.task_id,
+            task_id=manifest["task_id"],
             approved=approved,
             reason=reason,
             psi_before=psi_before,
@@ -244,7 +233,7 @@ class LunaEngine:
 
         log.info(
             "Pipeline cycle: task=%s approved=%s phase=%s phi_iit=%.4f",
-            manifest.task_id,
+            manifest["task_id"],
             approved,
             phase,
             cs.compute_phi_iit(),
@@ -257,23 +246,78 @@ class LunaEngine:
     # ------------------------------------------------------------------
 
     def idle_step(self) -> None:
-        """Evolve Psi with zero info_deltas and cached psi_others.
+        """Evolve Psi with zero info_deltas (or micro-perturbation if stagnant).
 
-        kappa*(psi0-psi) pulls toward identity. Gx@dx provides gentle coupling.
+        v5.1 single-agent: spatial gradient from internal history.
+        kappa*(psi0-psi) pulls toward identity.
+
+        Anti-stagnation (v5.3.1): when the last N history entries are identical,
+        inject a tiny perturbation (INV_PHI3 * 0.01 ≈ 0.0024) to break the
+        fixed point.  This prevents the phi_iit correlator from seeing zero
+        variance, which would collapse the phase to BROKEN.
         """
         if self.consciousness is None:
             raise RuntimeError("initialize() first")
 
-        psi_others = self._cached_psi_others
-        if psi_others is None:
-            psi_others = [
-                get_psi0("SAYOHMY"),
-                get_psi0("SENTINEL"),
-                get_psi0("TESTENGINEER"),
-            ]
+        deltas = [0.0, 0.0, 0.0, 0.0]
 
-        self.consciousness.evolve(psi_others, [0.0, 0.0, 0.0, 0.0])
+        # Detect stagnation: last 10 history entries identical.
+        h = self.consciousness.history
+        if len(h) >= 10:
+            import numpy as _np
+            tail = _np.array(h[-10:])
+            if _np.std(tail, axis=0).max() < 1e-10:
+                # Micro-perturbation toward psi0 — breaks fixed point
+                # without distorting identity (direction = psi0 - psi).
+                diff = self.consciousness.psi0 - self.consciousness.psi
+                scale = INV_PHI3 * 0.01  # ~0.0024 per component max
+                deltas = (diff * scale).tolist()
+
+        self.consciousness.evolve(deltas)
         self._idle_steps += 1
+
+    # ------------------------------------------------------------------
+    # Cognitive step (full pipeline for benchmarks)
+    # ------------------------------------------------------------------
+
+    def cognitive_step(self) -> None:
+        """Evolve Psi with real cognitive input: Thinker -> Reactor -> evolve.
+
+        Unlike idle_step() which feeds [0,0,0,0], this builds a Stimulus
+        from the current state, runs the Thinker to generate observations,
+        converts them to info_deltas via the Reactor, and evolves.
+        """
+        from luna.consciousness.thinker import Stimulus, Thinker, ThinkMode
+        from luna.consciousness.reactor import ConsciousnessReactor
+
+        if self.consciousness is None:
+            raise RuntimeError("initialize() first")
+
+        cs = self.consciousness
+
+        # Lazy-init Thinker (persists across steps for causal graph accumulation)
+        if not hasattr(self, "_benchmark_thinker"):
+            self._benchmark_thinker = Thinker(state=cs)
+
+        # Build stimulus from current state
+        stimulus = Stimulus(
+            psi=cs.psi.copy(),
+            phi_iit=cs.compute_phi_iit(),
+            phase=cs.get_phase(),
+            psi_trajectory=[h.copy() for h in cs.history[-5:]],
+        )
+
+        # Think -> structured observations
+        thought = self._benchmark_thinker.think(stimulus, mode=ThinkMode.RESPONSIVE)
+
+        # React -> info_deltas
+        reaction = ConsciousnessReactor.react(thought, cs.psi)
+
+        # Evolve with real cognitive input
+        cs.evolve(reaction.deltas)
+
+        # Collect phi_iit for validation coherence criterion
+        self.phi_iit_samples.append(cs.compute_phi_iit())
 
     # ------------------------------------------------------------------
     # Status
@@ -300,7 +344,6 @@ class LunaEngine:
             "identity_preserved": int(np.argmax(cs.psi)) == int(np.argmax(cs.psi0)),
             # Phase 2 — Phi Engine status
             "quality_score": self.phi_scorer.score(),
-            "health_phase": self.health_phase_machine.phase,
             "phi_metrics": self.phi_scorer.get_all_metrics(),
         }
 
@@ -324,7 +367,7 @@ class LunaEngine:
     # ------------------------------------------------------------------
 
     def _restore_phi_metrics(self) -> None:
-        """Restore PhiScorer EMA values from the consciousness checkpoint.
+        """Restore PhiScorer EMA values from the cognitive checkpoint.
 
         If the checkpoint contains ``phi_metrics`` (v2.4+), restores them
         into the PhiScorer. Otherwise this is a no-op — callers (e.g.
@@ -349,41 +392,96 @@ class LunaEngine:
         return self.phi_scorer.initialized_count() > 0
 
     # ------------------------------------------------------------------
+    # Identity anchoring (PlanManifest)
+    # ------------------------------------------------------------------
+
+    def _load_identity(self) -> None:
+        """Load and verify identity bundle, with recovery on failure.
+
+        Sets self.identity_context. On unrecoverable failure, logs a
+        critical warning but does NOT halt — Luna degrades gracefully
+        with identity_context=None (backward compat).
+        """
+        repo_root = self.config.resolve(Path("."))
+        ledger_path = self.config.resolve(self.config.identity.ledger_file)
+        ledger = IdentityLedger(ledger_path)
+
+        doc_paths = {
+            name: repo_root / filename
+            for name, filename in _DOC_NAMES_TO_FILES.items()
+        }
+
+        # Check if all docs exist before computing
+        docs_present = all(p.exists() for p in doc_paths.values())
+
+        if docs_present:
+            try:
+                bundle = compute_bundle(doc_paths)
+            except (FileNotFoundError, UnicodeDecodeError) as e:
+                log.warning("Identity bundle computation failed: %s", e)
+                bundle = None
+        else:
+            bundle = None
+
+        # Verify against ledger
+        if bundle is not None and ledger.verify(bundle):
+            self.identity_context = IdentityContext.from_bundle(bundle, ledger)
+            log.info(
+                "Identity anchored: v%s hash=%s",
+                self.identity_context.bundle_version,
+                self.identity_context.bundle_hash[:20] + "...",
+            )
+            return
+
+        # Recovery needed
+        log.warning("Identity missing or corrupted — entering RecoveryShell")
+        shell = RecoveryShell(
+            ledger=ledger,
+            doc_paths=doc_paths if docs_present else None,
+            search_roots=[repo_root],
+        )
+        result = shell.attempt_recovery()
+
+        if result.success and result.bundle is not None:
+            self.identity_context = IdentityContext.from_bundle(
+                result.bundle, ledger,
+            )
+            log.info("Identity recovered via %s", result.method)
+        else:
+            log.critical(
+                "IDENTITY UNRECOVERABLE: %s — running without identity context",
+                result.reason,
+            )
+            self.identity_context = None
+
+    # ------------------------------------------------------------------
     # Dream consolidation (v2.3)
     # ------------------------------------------------------------------
 
     def _apply_consolidated_profiles(self) -> None:
-        """Load dream-consolidated profiles and update Psi0 if changed.
+        """v5.3: Validate psi0_core matches AGENT_PROFILES.
 
-        Called during ``initialize()`` to apply any profile updates that
-        were written by the dream cycle's SIM_CONSOLIDATION phase.
-        If no profile file exists, this is a no-op.
+        psi0_core is the immutable identity anchor. psi0 (effective) may
+        differ due to the adaptive layer from dream consolidation.
+        This method restores psi0_core if it was corrupted.
         """
-        from luna.dream.consolidation import load_profiles
+        from luna_common.constants import AGENT_PROFILES
+        from luna_common.consciousness.evolution import MassMatrix
 
-        data_dir = self.config.resolve(self.config.luna.data_dir)
-        profiles_path = data_dir / "agent_profiles.json"
+        correct_psi0 = np.array(
+            AGENT_PROFILES.get(self.agent_name, (0.260, 0.322, 0.250, 0.168)),
+            dtype=np.float64,
+        )
 
-        if not profiles_path.is_file():
-            return
-
-        profiles = load_profiles(profiles_path)
-        luna_profile = profiles.get(self.agent_name)
-
-        if luna_profile is None:
-            return
-
-        new_psi0 = np.array(luna_profile, dtype=np.float64)
-
-        # Only update if the profile actually differs from the current anchor.
-        if np.allclose(new_psi0, self.consciousness.psi0, atol=1e-8):
-            return
-
-        try:
-            self.consciousness.update_psi0(new_psi0)
-            log.info(
-                "Applied consolidated Psi0 profile: %s",
-                np.array2string(new_psi0, precision=4),
+        if not np.allclose(self.consciousness.psi0_core, correct_psi0, atol=1e-6):
+            log.warning(
+                "Psi0 core changed: %s → %s — resetting adaptive layer",
+                np.array2string(self.consciousness.psi0_core, precision=4),
+                np.array2string(correct_psi0, precision=4),
             )
-        except ValueError as exc:
-            log.warning("Failed to apply consolidated profile: %s", exc)
+            self.consciousness.psi0_core = correct_psi0.copy()
+            # Reset adaptive layer — old drift was relative to old core.
+            self.consciousness._psi0_adaptive = np.zeros(DIM, dtype=np.float64)
+            self.consciousness.psi0 = self.consciousness._recompute_psi0()
+            self.consciousness.mass = MassMatrix(self.consciousness.psi0)
+            log.info("Psi0 core updated, adaptive layer reset")

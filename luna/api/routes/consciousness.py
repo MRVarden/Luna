@@ -1,4 +1,4 @@
-"""Consciousness endpoints -- Psi state, evolution, phi_iit."""
+"""Cognitive state endpoints -- Psi state, evolution, phi_iit."""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ router = APIRouter()
 
 @router.get("/state")
 async def get_state(orch: object = Depends(get_orchestrator)) -> dict:
-    """Get current consciousness state."""
+    """Get current cognitive state."""
     engine = getattr(orch, "engine", None)
     if engine is None:
         raise HTTPException(status_code=503, detail="engine not available")
 
     cs = getattr(engine, "consciousness", None)
     if cs is None:
-        raise HTTPException(status_code=503, detail="consciousness not initialized")
+        raise HTTPException(status_code=503, detail="cognitive state not initialized")
 
     return {
         "psi": cs.psi.tolist() if hasattr(cs.psi, "tolist") else list(cs.psi),
@@ -34,6 +34,6 @@ async def get_phi(engine: object = Depends(get_engine)) -> dict:
     status = engine.get_status()
     return {
         "phi_iit": status.get("phi_iit", 0.0),
-        "health_phase": status.get("health_phase", "unknown"),
+        "phase": status.get("phase", "unknown"),
         "health_score": status.get("health_score", 0.0),
     }

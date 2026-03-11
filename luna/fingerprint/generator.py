@@ -1,4 +1,4 @@
-"""Fingerprint generator — HMAC-SHA256 on consciousness state.
+"""Fingerprint generator — HMAC-SHA256 on cognitive state.
 
 Generates a deterministic fingerprint from:
 - Psi_0 (identity profile)
@@ -32,10 +32,10 @@ class Fingerprint:
     Attributes:
         agent_name: Name of the agent this fingerprint belongs to.
         psi0_hash: SHA256 hash of the identity profile.
-        state_hash: SHA256 hash of the current consciousness state.
+        state_hash: SHA256 hash of the current cognitive state.
         composite: HMAC-SHA256 combining all component hashes.
         timestamp: ISO 8601 timestamp of generation.
-        step_count: Consciousness evolution step at generation time.
+        step_count: Cognitive evolution step at generation time.
     """
 
     agent_name: str
@@ -70,7 +70,7 @@ class Fingerprint:
 
 
 class FingerprintGenerator:
-    """Generate HMAC-SHA256 fingerprints from consciousness state.
+    """Generate HMAC-SHA256 fingerprints from cognitive state.
 
     The HMAC secret is loaded from a file. If the file does not exist,
     a new secret is generated and persisted.
@@ -86,7 +86,7 @@ class FingerprintGenerator:
         self._secret = self._load_or_generate_secret()
 
     def generate(self, consciousness: object) -> Fingerprint:
-        """Generate a deterministic fingerprint from consciousness state.
+        """Generate a deterministic fingerprint from cognitive state.
 
         Args:
             consciousness: ConsciousnessState instance with psi, psi0, step_count.
@@ -122,7 +122,7 @@ class FingerprintGenerator:
         )
 
     def verify(self, fingerprint: Fingerprint, consciousness: object) -> bool:
-        """Verify a fingerprint against the current consciousness state.
+        """Verify a fingerprint against the current cognitive state.
 
         Args:
             fingerprint: Previously generated Fingerprint to verify.

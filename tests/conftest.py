@@ -537,3 +537,66 @@ def clear_caches():
     import functools
     import gc
     gc.collect()
+
+
+# =============================================================================
+# COGNITIVE LOOP FIXTURES
+# =============================================================================
+
+@pytest.fixture
+def make_test_config(tmp_path):
+    """Factory fixture: create a minimal LunaConfig for CognitiveLoop tests.
+
+    Returns a callable that accepts optional section overrides.
+    """
+    from luna.core.config import (
+        LunaConfig, LunaSection, ConsciousnessSection, MemorySection,
+        ObservabilitySection, HeartbeatSection,
+        ChatSection, OrchestratorSection,
+    )
+
+    def _factory(**overrides):
+        defaults = dict(
+            luna=LunaSection(
+                version="test",
+                agent_name="LUNA",
+                data_dir=str(tmp_path),
+            ),
+            consciousness=ConsciousnessSection(
+                checkpoint_file="cs.json",
+                backup_on_save=False,
+            ),
+            memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
+            observability=ObservabilitySection(),
+            heartbeat=HeartbeatSection(interval_seconds=0.01),
+            orchestrator=OrchestratorSection(retry_max=1, retry_base_delay=0.01),
+            chat=ChatSection(
+                max_history=100,
+                memory_search_limit=5,
+                idle_heartbeat=True,
+                save_conversations=True,
+            ),
+            root_dir=tmp_path,
+        )
+        defaults.update(overrides)
+        return LunaConfig(**defaults)
+
+    return _factory
+
+
+@pytest.fixture
+def make_test_loop(make_test_config):
+    """Factory fixture: create a minimal CognitiveLoop for testing.
+
+    The loop is NOT started (start() is a Vague 2 stub).
+    Use this to test ChatSession(config, loop=loop) injection.
+
+    Returns a callable that accepts optional config overrides.
+    """
+    from luna.orchestrator.cognitive_loop import CognitiveLoop
+
+    def _factory(**config_overrides):
+        config = make_test_config(**config_overrides)
+        return CognitiveLoop(config)
+
+    return _factory

@@ -25,7 +25,7 @@ async def health(request: Request) -> dict:
             try:
                 engine_status = engine.get_status()
                 details["engine"] = True
-                details["phase"] = engine_status.get("health_phase", "unknown")
+                details["phase"] = engine_status.get("phase", "unknown")
             except Exception:
                 details["engine"] = False
                 status = "degraded"

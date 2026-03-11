@@ -6,7 +6,7 @@ Migrations:
 2. leafs/ -> merge into leaves/ (leaves/ already has subdirs + 1 leaf)
 3. Fix index.json type fields to match directory names
 4. Rebuild indexes to include all files on disk
-5. Prune consciousness backups (keep first + last)
+5. Prune cognitive state backups (keep first + last)
 6. Remove .bak files from migrated dirs
 """
 
@@ -242,7 +242,7 @@ def rebuild_index(dirpath: Path, dirname: str) -> None:
 
 
 def prune_backups() -> None:
-    """Keep only first and last consciousness backup."""
+    """Keep only first and last cognitive state backup."""
     print(f"\n=== Pruning backups ===")
     backups = sorted(MEMORY_ROOT.glob("consciousness_state_v2.backup_*.json"))
     if len(backups) <= 2:

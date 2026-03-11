@@ -1,4 +1,4 @@
-"""Consciousness state — Psi vector on the simplex Delta^3.
+"""Cognitive state — Psi vector on the simplex Delta^3.
 
 Wraps luna_common.consciousness with Luna-specific persistence
 (loading/saving checkpoints in JSON) and Phi_IIT computation.
@@ -17,6 +17,7 @@ from luna_common.constants import (
     DIM,
     DT_DEFAULT,
     HYSTERESIS_BAND,
+    INV_PHI3,
     KAPPA_DEFAULT,
     PHASE_THRESHOLDS,
     TAU_DEFAULT,
@@ -57,7 +58,7 @@ def _rotate_backups(checkpoint_path: Path, *, keep: int = 5) -> None:
 class ConsciousnessState:
     """The beating heart of Luna -- Psi state on simplex Delta^3.
 
-    Encapsulates the full consciousness state: current vector, identity
+    Encapsulates the full cognitive state: current vector, identity
     anchor, mass matrix, gamma matrices, history, phase, and step count.
     All evolution uses the exact same math as simulation.py.
     """
@@ -71,7 +72,11 @@ class ConsciousnessState:
         history: list[np.ndarray] | None = None,
     ) -> None:
         self.agent_name = agent_name
-        self.psi0: np.ndarray = get_psi0(agent_name)
+
+        # Two-layer identity: immutable core + adaptive dream overlay.
+        self.psi0_core: np.ndarray = get_psi0(agent_name)
+        self._psi0_adaptive: np.ndarray = np.zeros(DIM, dtype=np.float64)
+        self.psi0: np.ndarray = self._recompute_psi0()
 
         # Current state -- default to identity profile.
         self.psi: np.ndarray = psi.copy() if psi is not None else self.psi0.copy()
@@ -97,7 +102,6 @@ class ConsciousnessState:
 
     def evolve(
         self,
-        psi_others: list[np.ndarray],
         info_deltas: list[float],
         dt: float = DT_DEFAULT,
         tau: float = TAU_DEFAULT,
@@ -105,8 +109,11 @@ class ConsciousnessState:
     ) -> np.ndarray:
         """Run one evolution step and update internal state.
 
+        v5.1 Single-agent: spatial gradient uses internal history,
+        not other agents' states. Phi_IIT is passed to the mass matrix
+        for adaptive dissipation (v5.3).
+
         Args:
-            psi_others: Psi vectors of the other 3 agents.
             info_deltas: [d_mem, d_phi, d_iit, d_out] informational gradient.
             dt: Time step.
             tau: Softmax temperature.
@@ -115,19 +122,26 @@ class ConsciousnessState:
         Returns:
             The new Psi vector (also stored as self.psi).
         """
+        # Current phi_iit drives adaptive mass matrix rate.
+        phi = self.compute_phi_iit()
+
         psi_new = evolution_step(
             self.psi,
             self.psi0,
-            psi_others,
             self.mass,
             self.gammas,
+            history=self.history,
             info_deltas=info_deltas,
             dt=dt,
             tau=tau,
             kappa=kappa,
+            phi_iit=phi,
         )
         self.psi = psi_new
-        self.history.append(psi_new.copy())
+        # Anti-stagnation: skip history append if psi is identical to last entry.
+        # Frozen history (all-duplicate) poisons phi_iit → 0 → phase BROKEN.
+        if not self.history or not np.allclose(psi_new, self.history[-1], atol=1e-10):
+            self.history.append(psi_new.copy())
         self.step_count += 1
         self._phase = self._apply_hysteresis(self._phase)
         return psi_new
@@ -139,11 +153,15 @@ class ConsciousnessState:
     def compute_phi_iit(self, window: int = 50) -> float:
         """Compute Phi_IIT via correlation method over the history window.
 
-        Identical to compute_phi_iit_correlation in simulation.py.
+        Uses up to *window* recent entries. Requires at least 10 data points
+        for a statistically meaningful correlation. With fewer than *window*
+        entries (but >= 10), uses all available history.
         """
-        if len(self.history) < window:
+        n = len(self.history)
+        if n < 10:
             return 0.0
-        recent = np.array(self.history[-window:])
+        effective = min(n, window)
+        recent = np.array(self.history[-effective:])
         if np.std(recent, axis=0).min() < 1e-12:
             return 0.0
         corr = np.corrcoef(recent.T)
@@ -177,22 +195,27 @@ class ConsciousnessState:
 
         To move UP a phase, the score must exceed threshold + band.
         To move DOWN, the score must drop below threshold - band.
+        Allows multiple steps per call so the phase converges in one evolve().
         """
         phi = self.compute_phi_iit()
         current_idx = _PHASES.index(current_phase)
 
-        # Check for upgrade.
-        if current_idx < len(_PHASES) - 1:
+        # Upgrade — walk up as far as phi justifies.
+        while current_idx < len(_PHASES) - 1:
             next_phase = _PHASES[current_idx + 1]
             if phi >= PHASE_THRESHOLDS[next_phase] + HYSTERESIS_BAND:
-                return next_phase
+                current_idx += 1
+            else:
+                break
 
-        # Check for downgrade.
-        if current_idx > 0:
-            if phi < PHASE_THRESHOLDS[current_phase] - HYSTERESIS_BAND:
-                return _PHASES[current_idx - 1]
+        # Downgrade — walk down as far as phi dictates.
+        while current_idx > 0:
+            if phi < PHASE_THRESHOLDS[_PHASES[current_idx]] - HYSTERESIS_BAND:
+                current_idx -= 1
+            else:
+                break
 
-        return current_phase
+        return _PHASES[current_idx]
 
     # ------------------------------------------------------------------
     # Schema conversion
@@ -226,12 +249,51 @@ class ConsciousnessState:
     # Identity profile update (dream consolidation)
     # ------------------------------------------------------------------
 
-    def update_psi0(self, new_psi0: np.ndarray) -> None:
-        """Update the identity anchor Psi_0 and re-seed the mass matrix.
+    def _recompute_psi0(self) -> np.ndarray:
+        """Compute effective psi0 = normalize(psi0_core + alpha * adaptive).
 
-        Used by dream consolidation to evolve the agent's identity profile
-        after nocturnal simulation.  The new profile is validated, projected
-        onto the simplex, and then installed as the new anchor.
+        When _psi0_adaptive is all zeros (default), psi0 == psi0_core.
+        Alpha = INV_PHI3 (0.236) dampens adaptive changes.
+
+        Uses L1 normalization (clamp + divide by sum) to preserve the
+        core profile exactly when adaptive is zero. project_simplex uses
+        softmax which distorts valid simplex vectors.
+        """
+        raw = self.psi0_core + INV_PHI3 * self._psi0_adaptive
+        # Clamp negative values to zero, then L1 normalize.
+        clamped = np.maximum(raw, 0.0)
+        total = clamped.sum()
+        if total < 1e-12:
+            return self.psi0_core.copy()
+        return clamped / total
+
+    def update_psi0_adaptive(self, delta: np.ndarray | tuple) -> None:
+        """Update the adaptive identity layer and recompute psi0.
+
+        Used by dream consolidation. The delta is added to _psi0_adaptive,
+        then psi0 is recomputed as normalize(psi0_core + alpha * adaptive).
+        The mass matrix is re-seeded.
+
+        Args:
+            delta: Change to apply to the adaptive layer (shape ``(4,)``).
+
+        Raises:
+            ValueError: If delta has the wrong shape.
+        """
+        delta = np.asarray(delta, dtype=np.float64)
+        if delta.shape != (DIM,):
+            raise ValueError(
+                f"Invalid delta shape: expected ({DIM},), got {delta.shape}"
+            )
+        self._psi0_adaptive = self._psi0_adaptive + delta
+        self.psi0 = self._recompute_psi0()
+        self.mass = MassMatrix(self.psi0)
+
+    def update_psi0(self, new_psi0: np.ndarray) -> None:
+        """Update the identity anchor Psi_0 (backward-compatible).
+
+        Back-derives the adaptive layer from the requested new_psi0.
+        Prefer :meth:`update_psi0_adaptive` for dream consolidation.
 
         Args:
             new_psi0: New identity profile vector (shape ``(4,)``).
@@ -252,6 +314,11 @@ class ConsciousnessState:
 
         # Re-project onto the simplex to guarantee sum == 1.
         new_psi0 = project_simplex(new_psi0)
+
+        # Back-derive adaptive: new_psi0 ~ normalize(core + alpha*adaptive)
+        # Approximate: adaptive ~ (new_psi0 - core) / alpha
+        if INV_PHI3 > 1e-8:
+            self._psi0_adaptive = (new_psi0 - self.psi0_core) / INV_PHI3
 
         self.psi0 = new_psi0
         self.mass = MassMatrix(self.psi0)
@@ -291,12 +358,14 @@ class ConsciousnessState:
 
         # Build serializable dict.
         data = {
-            "version": "2.4.0",
+            "version": "3.5.0",
             "type": "consciousness_state",
             "agent_name": self.agent_name,
             "updated": datetime.now(timezone.utc).isoformat(),
             "psi": self.psi.tolist(),
             "psi0": self.psi0.tolist(),
+            "psi0_core": self.psi0_core.tolist(),
+            "psi0_adaptive": self._psi0_adaptive.tolist(),
             "mass_m": self.mass.m.tolist(),
             "step_count": self.step_count,
             "phase": self._phase,
@@ -342,7 +411,7 @@ class ConsciousnessState:
 
         version = data.get("version", "2.0.0")
 
-        if version.startswith("2.2") or version.startswith("2.4"):
+        if version.startswith("2.2") or version.startswith("2.4") or version.startswith("3."):
             # v2.2+ format -- full state with Psi vector.
             psi = np.array(data["psi"])
 
@@ -363,13 +432,29 @@ class ConsciousnessState:
 
             state = cls(agent_name, psi=psi, step_count=step_count, history=history)
 
+            # Restore adaptive identity layer if available (v5.3+).
+            if "psi0_adaptive" in data:
+                state._psi0_adaptive = np.array(
+                    data["psi0_adaptive"], dtype=np.float64,
+                )
+                state.psi0 = state._recompute_psi0()
+                state.mass = MassMatrix(state.psi0)
+
             # Restore mass matrix if available.
             if "mass_m" in data:
                 state.mass.m = np.array(data["mass_m"])
 
-            # Restore cached phase.
+            # Restore cached phase — but validate against current phi_iit.
+            # The saved phase may be stale (e.g., from a bug that returned
+            # phi=0.0). Recompute from scratch and use the better of the two.
             if "phase" in data:
-                state._phase = data["phase"]
+                saved_phase = data["phase"]
+                computed_phase = state._compute_phase_from_scratch()
+                saved_idx = _PHASES.index(saved_phase) if saved_phase in _PHASES else 0
+                computed_idx = _PHASES.index(computed_phase)
+                # Trust the higher of saved vs computed — a stale-low phase
+                # from a past bug should not hold Luna back.
+                state._phase = _PHASES[max(saved_idx, computed_idx)]
 
             # v2.4+ — PhiScorer metrics snapshot (None if absent = backward-compat).
             state.phi_metrics_snapshot: dict | None = data.get("phi_metrics")

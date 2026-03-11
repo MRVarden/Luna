@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from luna.api.dependencies import get_orchestrator
+from luna.safety.kill_auth import DEFAULT_HASH_FILE, require_kill_password
 
 router = APIRouter()
 
@@ -32,14 +36,30 @@ async def safety_status(orch: object = Depends(get_orchestrator)) -> dict:
     return result
 
 
+class KillRequest(BaseModel):
+    """Body for POST /kill — requires password authentication."""
+
+    password: str
+    reason: str = "API request"
+
+
 @router.post("/kill")
-async def kill(orch: object = Depends(get_orchestrator)) -> dict:
-    """Activate the kill switch."""
+async def kill(body: KillRequest, orch: object = Depends(get_orchestrator)) -> dict:
+    """Activate the kill switch (password-protected)."""
     ks = getattr(orch, "kill_switch", None)
     if ks is None:
         raise HTTPException(status_code=503, detail="kill switch not available")
 
-    cancelled = ks.kill(reason="API request")
+    config = getattr(orch, "config", None)
+    root_dir = getattr(config, "root_dir", None) or Path.cwd()
+    hash_file = root_dir / DEFAULT_HASH_FILE
+
+    try:
+        require_kill_password(body.password, hash_file)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    cancelled = ks.kill(reason=body.reason)
     return {"killed": True, "tasks_cancelled": cancelled}
 
 

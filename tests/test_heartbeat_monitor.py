@@ -11,14 +11,14 @@ from luna.heartbeat.vitals import VitalSigns
 def _make_vitals(**overrides) -> VitalSigns:
     """Create a VitalSigns with defaults and optional overrides."""
     defaults = dict(
-        psi=(0.25, 0.35, 0.25, 0.15),
-        psi0=(0.25, 0.35, 0.25, 0.15),
+        psi=(0.260, 0.322, 0.250, 0.168),
+        psi0=(0.260, 0.322, 0.250, 0.168),
         identity_drift=0.1,
         dominant_component="Reflexion",
         identity_preserved=True,
         phi_iit=0.7,
         quality_score=0.65,
-        health_phase="SOLID",
+        phase="SOLID",
         total_memories=100,
         idle_steps=42,
         uptime_seconds=300.0,
@@ -97,10 +97,10 @@ class TestHeartbeatMonitor:
         """Health phase degradation triggers alert."""
         monitor = HeartbeatMonitor()
 
-        solid = _make_vitals(health_phase="SOLID")
+        solid = _make_vitals(phase="SOLID")
         monitor.check(solid)
 
-        fragile = _make_vitals(health_phase="FRAGILE")
+        fragile = _make_vitals(phase="FRAGILE")
         alerts = monitor.check(fragile)
         phase_alerts = [a for a in alerts if a.alert_type == "phase_degradation"]
         assert len(phase_alerts) == 1
@@ -109,10 +109,10 @@ class TestHeartbeatMonitor:
         """Phase improvement does not trigger degradation alert."""
         monitor = HeartbeatMonitor()
 
-        fragile = _make_vitals(health_phase="FRAGILE")
+        fragile = _make_vitals(phase="FRAGILE")
         monitor.check(fragile)
 
-        solid = _make_vitals(health_phase="SOLID")
+        solid = _make_vitals(phase="SOLID")
         alerts = monitor.check(solid)
         phase_alerts = [a for a in alerts if a.alert_type == "phase_degradation"]
         assert len(phase_alerts) == 0

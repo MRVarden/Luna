@@ -116,7 +116,7 @@ class TestWindowing:
 
 
 # ===================================================================
-#  8-9. System-wide detection (Test-Engineer cross-check)
+#  8-9. System-wide detection (cross-validation)
 # ===================================================================
 
 
@@ -195,8 +195,6 @@ class TestEngineIntegration:
         from luna_common.schemas import (
             IntegrationCheck,
             PsiState,
-            SayOhmyManifest,
-            SentinelReport,
         )
 
         engine_module = pytest.importorskip("luna.core.luna")
@@ -219,7 +217,6 @@ class TestEngineIntegration:
                 luna=cfg.luna,
                 consciousness=new_cs,
                 memory=cfg.memory,
-                pipeline=cfg.pipeline,
                 observability=cfg.observability,
                 heartbeat=cfg.heartbeat,
                 root_dir=tmp,
@@ -227,27 +224,23 @@ class TestEngineIntegration:
             engine = LunaEngine(config=cfg)
             engine.initialize()
 
-            psi_s = PsiState(perception=0.15, reflexion=0.15, integration=0.20, expression=0.50)
-            psi_se = PsiState(perception=0.50, reflexion=0.20, integration=0.20, expression=0.10)
             psi_te = PsiState(perception=0.15, reflexion=0.20, integration=0.50, expression=0.15)
 
             for i in range(5):
-                m = SayOhmyManifest(
-                    task_id=f"ILL-{i}",
-                    files_produced=[],
-                    phi_score=0.72,
-                    mode_used="architect",
-                    psi_sayohmy=psi_s,
-                    confidence=0.85,
-                )
-                sr = SentinelReport(
-                    task_id=f"ILL-{i}",
-                    findings=[],
-                    risk_score=0.1,
-                    veto=False,
-                    psi_sentinel=psi_se,
-                    scanners_used=["bandit"],
-                )
+                m = {
+                    "task_id": f"ILL-{i}",
+                    "files_produced": [],
+                    "phi_score": 0.72,
+                    "mode_used": "architect",
+                    "confidence": 0.85,
+                }
+                sr = {
+                    "task_id": f"ILL-{i}",
+                    "findings": [],
+                    "risk_score": 0.1,
+                    "veto": False,
+                    "scanners_used": ["bandit"],
+                }
                 ic = IntegrationCheck(
                     task_id=f"ILL-{i}",
                     cross_checks=[],

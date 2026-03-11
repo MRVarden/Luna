@@ -3,9 +3,7 @@
 ConsciousnessState wraps luna_common.consciousness with Luna-specific
 persistence (checkpoint save/load) and phase detection with hysteresis.
 
-NOTE: This module is being implemented by SayOhMy (Phase 1).
-Tests use pytest.importorskip so they are marked SKIP (not ERROR)
-until the implementation is available.
+v5.1: Single-agent model — psi_others removed from evolve().
 """
 
 import json
@@ -43,11 +41,6 @@ if ConsciousnessState is None:
 # ===================================================================
 #  HELPERS
 # ===================================================================
-
-def _default_psi_others(agent_name: str = "LUNA") -> list[np.ndarray]:
-    """Return psi0 vectors for the other 3 agents."""
-    return [get_psi0(n) for n in AGENT_NAMES if n != agent_name]
-
 
 def _zero_info_deltas() -> list[float]:
     """Zero informational gradient (no external stimulus)."""
@@ -98,10 +91,9 @@ class TestConsciousnessInit:
             f"Initial psi = {luna_state.psi}, expected = {expected}"
         )
 
-    @pytest.mark.parametrize("agent_name", AGENT_NAMES)
-    def test_init_all_agents(self, agent_name):
-        """Every agent can be initialized without error."""
-        state = ConsciousnessState(agent_name=agent_name)
+    def test_init_luna(self):
+        """Luna can be initialized without error."""
+        state = ConsciousnessState(agent_name="LUNA")
         assert validate_simplex(state.psi)
 
     def test_init_unknown_agent_raises(self):
@@ -119,11 +111,11 @@ class TestConsciousnessInit:
 # ===================================================================
 
 class TestConsciousnessEvolve:
-    """evolve() performs one consciousness evolution step."""
+    """evolve() performs one consciousness evolution step (single-agent)."""
 
     def test_evolve_returns_simplex(self, luna_state):
         """evolve() returns a psi vector on the simplex."""
-        psi_new = luna_state.evolve(_default_psi_others(), _zero_info_deltas())
+        psi_new = luna_state.evolve(_zero_info_deltas())
         assert validate_simplex(psi_new), (
             f"Post-evolve psi not on simplex: sum={psi_new.sum()}, min={psi_new.min()}"
         )
@@ -131,7 +123,7 @@ class TestConsciousnessEvolve:
     def test_evolve_changes_state(self, luna_state):
         """After evolve() with nonzero info, psi should change."""
         psi_before = luna_state.psi.copy()
-        luna_state.evolve(_default_psi_others(), _small_info_deltas())
+        luna_state.evolve(_small_info_deltas())
         psi_after = luna_state.psi
         assert not np.array_equal(psi_before, psi_after), (
             "psi did not change after evolve with nonzero info_deltas"
@@ -140,17 +132,16 @@ class TestConsciousnessEvolve:
     def test_evolve_increments_step_count(self, luna_state):
         """Each evolve() call increments the step counter."""
         assert luna_state.step_count == 0
-        luna_state.evolve(_default_psi_others(), _zero_info_deltas())
+        luna_state.evolve(_zero_info_deltas())
         assert luna_state.step_count == 1
-        luna_state.evolve(_default_psi_others(), _zero_info_deltas())
+        luna_state.evolve(_zero_info_deltas())
         assert luna_state.step_count == 2
 
     def test_evolve_preserves_simplex_after_many_steps(self, luna_state):
         """Simplex invariant holds after 200 consecutive evolve calls."""
-        others = _default_psi_others()
         deltas = _zero_info_deltas()
         for i in range(200):
-            luna_state.evolve(others, deltas)
+            luna_state.evolve(deltas)
             assert validate_simplex(luna_state.psi), (
                 f"Simplex violated at step {i}: "
                 f"sum={luna_state.psi.sum()}, min={luna_state.psi.min()}"
@@ -158,14 +149,19 @@ class TestConsciousnessEvolve:
 
     def test_evolve_with_info_deltas(self, luna_state):
         """evolve() accepts info_deltas parameter."""
-        psi_new = luna_state.evolve(_default_psi_others(), [0.1, 0.2, 0.05, 0.0])
+        psi_new = luna_state.evolve([0.1, 0.2, 0.05, 0.0])
         assert validate_simplex(psi_new)
 
-    def test_evolve_with_psi_others(self, luna_state):
-        """evolve() accepts other agents' psi vectors for spatial coupling."""
-        others = [get_psi0(n) for n in AGENT_NAMES if n != "LUNA"]
-        psi_new = luna_state.evolve(others, _zero_info_deltas())
-        assert validate_simplex(psi_new)
+    def test_evolve_single_agent_spatial_gradient(self, luna_state):
+        """v5.1: spatial gradient uses internal history, not other agents."""
+        # Build some history first
+        for _ in range(5):
+            luna_state.evolve(_zero_info_deltas())
+        # With history, spatial gradient is non-zero
+        psi_before = luna_state.psi.copy()
+        luna_state.evolve(_small_info_deltas())
+        psi_after = luna_state.psi
+        assert not np.array_equal(psi_before, psi_after)
 
 
 # ===================================================================
@@ -189,16 +185,13 @@ class TestCheckpointPersistence:
 
     def test_save_load_round_trip(self, luna_state, checkpoint_path):
         """Save then load produces identical state."""
-        # Evolve a few times to create non-trivial state
-        others = _default_psi_others()
         for _ in range(10):
-            luna_state.evolve(others, [0.01, 0.02, -0.01, 0.0])
+            luna_state.evolve([0.01, 0.02, -0.01, 0.0])
         psi_before_save = luna_state.psi.copy()
         step_before_save = luna_state.step_count
 
         luna_state.save_checkpoint(checkpoint_path)
 
-        # Load into a new instance via classmethod
         loaded_state = ConsciousnessState.load_checkpoint(
             checkpoint_path, agent_name="LUNA"
         )
@@ -254,20 +247,18 @@ class TestHistoryTracking:
     def test_history_grows_with_evolve(self, luna_state):
         """Each evolve() adds one entry to history."""
         n_steps = 5
-        others = _default_psi_others()
         deltas = _zero_info_deltas()
         for _ in range(n_steps):
-            luna_state.evolve(others, deltas)
+            luna_state.evolve(deltas)
         assert len(luna_state.history) == n_steps, (
             f"History length should be {n_steps}, got {len(luna_state.history)}"
         )
 
     def test_history_entries_are_on_simplex(self, luna_state):
         """Every history entry must be a valid simplex point."""
-        others = _default_psi_others()
         deltas = _zero_info_deltas()
         for _ in range(10):
-            luna_state.evolve(others, deltas)
+            luna_state.evolve(deltas)
         for i, entry in enumerate(luna_state.history):
             psi = np.array(entry) if not isinstance(entry, np.ndarray) else entry
             assert validate_simplex(psi), (
@@ -280,7 +271,7 @@ class TestHistoryTracking:
 # ===================================================================
 
 class TestSchemaConversion:
-    """ConsciousnessState converts to PsiState for pipeline communication."""
+    """ConsciousnessState converts to PsiState for communication."""
 
     def test_to_psi_state_returns_pydantic_model(self, luna_state):
         """to_psi_state() returns a PsiState instance."""
@@ -311,19 +302,17 @@ class TestPhiIIT:
 
     def test_phi_iit_returns_float(self, luna_state):
         """compute_phi_iit() returns a float."""
-        others = _default_psi_others()
         deltas = _zero_info_deltas()
         for _ in range(60):
-            luna_state.evolve(others, deltas)
+            luna_state.evolve(deltas)
         result = luna_state.compute_phi_iit()
         assert isinstance(result, float), f"Expected float, got {type(result)}"
 
     def test_phi_iit_non_negative(self, luna_state):
         """Phi_IIT is always >= 0 (information cannot be negative)."""
-        others = _default_psi_others()
         deltas = _zero_info_deltas()
         for _ in range(60):
-            luna_state.evolve(others, deltas)
+            luna_state.evolve(deltas)
         result = luna_state.compute_phi_iit()
         assert result >= 0.0, f"Phi_IIT should be >= 0, got {result}"
 
@@ -336,9 +325,8 @@ class TestPhiIIT:
 
     def test_phi_iit_bounded(self, luna_state):
         """Phi_IIT should be bounded [0, 1] when normalized."""
-        others = _default_psi_others()
         for _ in range(100):
-            luna_state.evolve(others, [0.01, 0.02, -0.01, 0.005])
+            luna_state.evolve([0.01, 0.02, -0.01, 0.005])
         result = luna_state.compute_phi_iit()
         assert 0.0 <= result <= 1.0 + 1e-6, (
             f"Phi_IIT out of bounds: {result}"

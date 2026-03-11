@@ -1,14 +1,14 @@
-"""Tests for ConsciousnessState checkpoint persistence with phi_metrics (v2.4.0).
+"""Tests for ConsciousnessState checkpoint persistence with phi_metrics.
 
-Validates that save_checkpoint/load_checkpoint correctly handle the new
-phi_metrics field introduced in v2.4.0, while maintaining backward
-compatibility with v2.2.0 and legacy v2.0.0 checkpoint formats.
+Validates that save_checkpoint/load_checkpoint correctly handle the
+phi_metrics field, while maintaining backward compatibility with v2.2.0
+and legacy v2.0.0 checkpoint formats.
 
 CRITICAL INVARIANTS:
-  - v2.4.0 checkpoints include "phi_metrics" when provided
-  - v2.4.0 checkpoints have version "2.4.0"
-  - Loading v2.4 with phi_metrics populates phi_metrics_snapshot
-  - Loading v2.2 or v2.0 sets phi_metrics_snapshot to None
+  - v3.5.0 checkpoints include "phi_metrics" when provided
+  - v3.5.0 checkpoints have version "3.5.0"
+  - Loading v3.5/v2.4/v2.2 with phi_metrics populates phi_metrics_snapshot
+  - Loading v2.0 sets phi_metrics_snapshot to None
   - Round-trip save/load preserves phi_metrics faithfully
   - Fresh ConsciousnessState has phi_metrics_snapshot = None
 """
@@ -70,15 +70,15 @@ class TestCheckpointSaveFormat:
         assert "phi_metrics" in data, "phi_metrics key missing from checkpoint"
         assert data["phi_metrics"] == metrics
 
-    def test_version_bumped_to_24(self, tmp_path: Path):
-        """Saved checkpoint must have version '2.4.0'."""
+    def test_version_bumped_to_35(self, tmp_path: Path):
+        """Saved checkpoint must have version '3.5.0'."""
         state = _make_state()
         ckpt = tmp_path / "ckpt.json"
         state.save_checkpoint(ckpt)
 
         data = json.loads(ckpt.read_text())
-        assert data["version"] == "2.4.0", (
-            f"Expected version '2.4.0', got {data['version']!r}"
+        assert data["version"] == "3.5.0", (
+            f"Expected version '3.5.0', got {data['version']!r}"
         )
 
     def test_save_creates_backup_when_file_exists(self, tmp_path: Path):
@@ -120,7 +120,7 @@ class TestCheckpointLoadFormats:
     def test_load_v22_format_has_none_snapshot(self, tmp_path: Path):
         """A v2.2.0 checkpoint (no phi_metrics key) yields None snapshot."""
         # Manually write a v2.2 checkpoint
-        psi = [0.25, 0.35, 0.25, 0.15]
+        psi = [0.260, 0.322, 0.250, 0.168]
         data = {
             "version": "2.2.0",
             "type": "consciousness_state",

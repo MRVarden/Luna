@@ -41,7 +41,7 @@ def fingerprint(
 
     cs = engine.consciousness
     if cs is None:
-        typer.echo("Error: consciousness not initialized.")
+        typer.echo("Error: cognitive state not initialized.")
         raise typer.Exit(1)
 
     fp = gen.generate(cs)

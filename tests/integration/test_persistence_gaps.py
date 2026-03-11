@@ -36,7 +36,6 @@ from luna.core.config import (
     MemorySection,
     ObservabilitySection,
     OrchestratorSection,
-    PipelineSection,
 )
 from luna.dream.consolidation import load_profiles, save_profiles
 from luna.llm_bridge.bridge import LLMResponse
@@ -59,17 +58,15 @@ def _make_config(tmp_path: Path, **chat_overrides) -> LunaConfig:
     chat_kw.update(chat_overrides)
     return LunaConfig(
         luna=LunaSection(
-            version="2.4.0",
+            version="3.5.0",
             agent_name="LUNA",
             data_dir=str(tmp_path / "data"),
-            pipeline_dir=str(tmp_path / "pipeline"),
         ),
         consciousness=ConsciousnessSection(
             checkpoint_file="cs.json",
             backup_on_save=False,
         ),
         memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
-        pipeline=PipelineSection(root=str(tmp_path / "pipeline")),
         observability=ObservabilitySection(),
         heartbeat=HeartbeatSection(
             interval_seconds=0.01,
@@ -97,13 +94,13 @@ def _make_phi_snapshot() -> dict:
     """Build a realistic phi_metrics snapshot with all 7 metrics."""
     ts = datetime.now(timezone.utc).isoformat()
     return {
-        "security_integrity":  {"value": 0.95, "source": "measured", "timestamp": ts},
-        "coverage_pct":        {"value": 0.72, "source": "measured", "timestamp": ts},
-        "complexity_score":    {"value": 0.80, "source": "bootstrap", "timestamp": ts},
-        "test_ratio":          {"value": 0.65, "source": "measured", "timestamp": ts},
-        "abstraction_ratio":   {"value": 0.58, "source": "bootstrap", "timestamp": ts},
-        "function_size_score": {"value": 0.88, "source": "measured", "timestamp": ts},
-        "performance_score":   {"value": 0.91, "source": "measured", "timestamp": ts},
+        "integration_coherence": {"value": 0.95, "source": "measured", "timestamp": ts},
+        "identity_anchoring":    {"value": 0.72, "source": "measured", "timestamp": ts},
+        "reflection_depth":      {"value": 0.80, "source": "bootstrap", "timestamp": ts},
+        "perception_acuity":     {"value": 0.65, "source": "measured", "timestamp": ts},
+        "expression_fidelity":   {"value": 0.58, "source": "bootstrap", "timestamp": ts},
+        "affect_regulation":     {"value": 0.88, "source": "measured", "timestamp": ts},
+        "memory_vitality":       {"value": 0.91, "source": "measured", "timestamp": ts},
     }
 
 
@@ -196,7 +193,7 @@ class TestGap1PhiMetricsPersistence:
         """Valid JSON v2.4 but missing 'psi' key raises ValueError."""
         ckpt = tmp_path / "cs_no_psi.json"
         data = {
-            "version": "2.4.0",
+            "version": "3.5.0",
             "type": "consciousness_state",
             "agent_name": "LUNA",
             # no "psi" key!
@@ -217,9 +214,9 @@ class TestGap1PhiMetricsPersistence:
         """Only 3 of 7 metrics in checkpoint -- those 3 restored, others remain None."""
         ckpt = tmp_path / "cs_partial.json"
         partial_snap = {
-            "security_integrity": {"value": 0.95},
-            "coverage_pct": {"value": 0.72},
-            "test_ratio": {"value": 0.60},
+            "integration_coherence": {"value": 0.95},
+            "identity_anchoring": {"value": 0.72},
+            "perception_acuity": {"value": 0.60},
         }
         state = ConsciousnessState("LUNA")
         state.save_checkpoint(ckpt, phi_metrics=partial_snap)
@@ -233,22 +230,22 @@ class TestGap1PhiMetricsPersistence:
         assert count == 3, f"Expected 3 metrics restored, got {count}"
 
         # Restored metrics have correct values
-        assert scorer.get_metric("security_integrity") == pytest.approx(0.95)
-        assert scorer.get_metric("coverage_pct") == pytest.approx(0.72)
-        assert scorer.get_metric("test_ratio") == pytest.approx(0.60)
+        assert scorer.get_metric("integration_coherence") == pytest.approx(0.95)
+        assert scorer.get_metric("identity_anchoring") == pytest.approx(0.72)
+        assert scorer.get_metric("perception_acuity") == pytest.approx(0.60)
 
         # Unrestored metrics are None
-        assert scorer.get_metric("complexity_score") is None
-        assert scorer.get_metric("abstraction_ratio") is None
-        assert scorer.get_metric("function_size_score") is None
-        assert scorer.get_metric("performance_score") is None
+        assert scorer.get_metric("reflection_depth") is None
+        assert scorer.get_metric("expression_fidelity") is None
+        assert scorer.get_metric("affect_regulation") is None
+        assert scorer.get_metric("memory_vitality") is None
 
     def test_phi_metrics_with_nan_ignored(self, tmp_path: Path):
         """NaN value in phi_metrics is skipped during PhiScorer.restore()."""
         ckpt = tmp_path / "cs_nan.json"
         snap = {
-            "security_integrity": {"value": 0.95},
-            "coverage_pct": {"value": float("nan")},  # Will serialize as NaN
+            "integration_coherence": {"value": 0.95},
+            "identity_anchoring": {"value": float("nan")},  # Will serialize as NaN
         }
         state = ConsciousnessState("LUNA")
         state.save_checkpoint(ckpt, phi_metrics=snap)
@@ -261,8 +258,8 @@ class TestGap1PhiMetricsPersistence:
         assert count == 1, (
             f"Expected 1 metric restored (NaN skipped), got {count}"
         )
-        assert scorer.get_metric("security_integrity") == pytest.approx(0.95)
-        assert scorer.get_metric("coverage_pct") is None
+        assert scorer.get_metric("integration_coherence") == pytest.approx(0.95)
+        assert scorer.get_metric("identity_anchoring") is None
 
     def test_scorer_snapshot_restore_roundtrip(self):
         """PhiScorer: update -> snapshot -> restore into new scorer -> score matches."""
@@ -285,12 +282,12 @@ class TestGap1PhiMetricsPersistence:
         """Unknown metric names in snapshot are silently ignored (forward compat)."""
         scorer = PhiScorer()
         snap = {
-            "security_integrity": {"value": 0.90},
+            "integration_coherence": {"value": 0.90},
             "future_metric_v3": {"value": 0.50},  # Unknown -- should be skipped
         }
         count = scorer.restore(snap)
         assert count == 1
-        assert scorer.get_metric("security_integrity") == pytest.approx(0.90)
+        assert scorer.get_metric("integration_coherence") == pytest.approx(0.90)
 
     def test_checkpoint_contains_version_and_structure(self, tmp_path: Path):
         """Saved checkpoint has required top-level keys for forward readers."""
@@ -308,7 +305,7 @@ class TestGap1PhiMetricsPersistence:
         assert required_keys.issubset(data.keys()), (
             f"Missing keys: {required_keys - data.keys()}"
         )
-        assert data["version"] == "2.4.0"
+        assert data["version"] == "3.5.0"
         assert data["type"] == "consciousness_state"
 
     def test_atomic_write_no_tmp_left(self, tmp_path: Path):
@@ -336,7 +333,7 @@ class TestGap2AgentProfiles:
         """save_profiles -> load_profiles -> identical profiles."""
         path = tmp_path / "agent_profiles.json"
         profiles = {
-            "LUNA":         (0.25, 0.35, 0.25, 0.15),
+            "LUNA":         (0.260, 0.322, 0.250, 0.168),
             "SAYOHMY":      (0.15, 0.15, 0.20, 0.50),
             "SENTINEL":     (0.50, 0.20, 0.20, 0.10),
             "TESTENGINEER": (0.15, 0.20, 0.50, 0.15),
@@ -399,7 +396,7 @@ class TestGap2AgentProfiles:
         """Valid JSON with only 2 agents -> returns those 2 (no crash)."""
         path = tmp_path / "partial.json"
         partial = {
-            "LUNA": [0.25, 0.35, 0.25, 0.15],
+            "LUNA": [0.260, 0.322, 0.250, 0.168],
             "SAYOHMY": [0.15, 0.15, 0.20, 0.50],
         }
         path.write_text(json.dumps(partial))
@@ -481,7 +478,7 @@ class TestGap3ChatHistory:
 
         # Session 1: start, send a message, stop (saves history)
         session1 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session1.start()
         await session1.send("Hello Luna")
         await session1.stop()
@@ -491,7 +488,7 @@ class TestGap3ChatHistory:
 
         # Session 2: start (loads history), verify
         session2 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session2.start()
 
         assert len(session2.history) >= 2, (
@@ -508,7 +505,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         assert session.history == [], (
@@ -527,7 +524,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         assert session.history == [], (
@@ -545,7 +542,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         assert session.history == [], (
@@ -568,7 +565,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         assert len(session.history) == 2, (
@@ -584,7 +581,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         # Simulate many turns by injecting history directly
@@ -623,7 +620,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         assert len(session.history) == 10, (
@@ -646,7 +643,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         assert len(session.history) == 1
@@ -664,7 +661,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession, ChatMessage
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         session._history.append(ChatMessage(role="user", content="test"))
@@ -683,7 +680,7 @@ class TestGap3ChatHistory:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         await session.stop()
 
@@ -708,7 +705,7 @@ class TestEndToEndPersistence:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         await session.send("Hello persistence")
         await session.stop()
@@ -733,7 +730,7 @@ class TestEndToEndPersistence:
         from luna.chat.session import ChatSession
 
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         await session.send("Hello history")
         await session.stop()
@@ -754,7 +751,7 @@ class TestEndToEndPersistence:
 
         # Session 1: interact and stop
         session1 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session1.start()
         await session1.send("Measure something")
         score_before = session1.engine.phi_scorer.score()
@@ -763,7 +760,7 @@ class TestEndToEndPersistence:
 
         # Session 2: restart and verify
         session2 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session2.start()
 
         assert session2.engine.phi_metrics_restored is True, (
@@ -792,7 +789,7 @@ class TestEndToEndPersistence:
 
         # Session 1
         session1 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session1.start()
         await session1.send("Remember this")
         history_len = len(session1.history)
@@ -800,7 +797,7 @@ class TestEndToEndPersistence:
 
         # Session 2
         session2 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session2.start()
 
         assert len(session2.history) == history_len, (
@@ -815,7 +812,7 @@ class TestEndToEndPersistence:
         from luna.chat.session import ChatSession
 
         session1 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session1.start()
         await session1.send("Tick tock")
         step_count = session1.engine.consciousness.step_count
@@ -823,7 +820,7 @@ class TestEndToEndPersistence:
         await session1.stop()
 
         session2 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session2.start()
 
         assert session2.engine.consciousness.step_count == step_count, (
@@ -831,42 +828,38 @@ class TestEndToEndPersistence:
         )
 
     @pytest.mark.asyncio
-    async def test_dream_profiles_applied_on_restart(self, tmp_path: Path):
-        """Save dream-consolidated profiles -> next init applies them to Psi0."""
+    async def test_dream_profiles_corrected_on_restart(self, tmp_path: Path):
+        """v5.0: Psi0 is FIXED by identity — drifted profiles are RESTORED.
+
+        Dream consolidation may corrupt agent_profiles.json, but Luna's
+        _apply_consolidated_profiles() now restores the hardcoded identity
+        anchor from AGENT_PROFILES.
+        """
         cfg = _make_config(tmp_path)
         from luna.chat.session import ChatSession
 
-        # Session 1: normal start, save checkpoint
+        # Session 1: normal start, save checkpoint with corrupted psi0
         session1 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session1.start()
         psi0_original = session1.engine.consciousness.psi0.copy()
+        # Manually corrupt psi0 in state before saving
+        session1.engine.consciousness._psi0 = np.array([0.24, 0.36, 0.25, 0.15])
         await session1.stop()
 
-        # Simulate dream consolidation: save slightly drifted profiles
-        data_dir = cfg.resolve(cfg.luna.data_dir)
-        data_dir.mkdir(parents=True, exist_ok=True)
-        drifted_profiles = {
-            "LUNA":         (0.24, 0.36, 0.25, 0.15),
-            "SAYOHMY":      (0.15, 0.15, 0.20, 0.50),
-            "SENTINEL":     (0.50, 0.20, 0.20, 0.10),
-            "TESTENGINEER": (0.15, 0.20, 0.50, 0.15),
-        }
-        save_profiles(data_dir / "agent_profiles.json", drifted_profiles)
-
-        # Session 2: should pick up the drifted profiles
+        # Session 2: should RESTORE correct psi0 despite corruption
         session2 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session2.start()
 
         psi0_after = session2.engine.consciousness.psi0
-        # Psi0 should have been updated (project_simplex may adjust values slightly)
-        assert not np.allclose(psi0_after, psi0_original, atol=1e-6), (
-            "Psi0 should have changed after dream consolidation profiles applied"
+        # Psi0 should be restored to the CORRECT identity anchor
+        np.testing.assert_allclose(psi0_after, psi0_original, atol=1e-6,
+            err_msg="Psi0 should be restored to identity anchor, not kept corrupted",
         )
-        # Dominant component should still be Reflexion (index 1) for LUNA
+        # Dominant component should be Reflexion (index 1) for LUNA
         assert np.argmax(psi0_after) == 1, (
-            f"LUNA dominant should remain Reflexion (index 1), got {np.argmax(psi0_after)}"
+            f"LUNA dominant should be Reflexion (index 1), got {np.argmax(psi0_after)}"
         )
 
     @pytest.mark.asyncio
@@ -877,7 +870,7 @@ class TestEndToEndPersistence:
 
         # --- Session 1: create state across all 3 gaps ---
         session1 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session1.start()
 
         # Gap 3: create chat history
@@ -910,7 +903,7 @@ class TestEndToEndPersistence:
 
         # --- Session 2: verify all 3 gaps ---
         session2 = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session2.start()
 
         # Gap 1: PhiScorer restored

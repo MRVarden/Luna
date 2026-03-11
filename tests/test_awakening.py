@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from luna.dream.awakening import Awakening, AwakeningReport
-from luna.dream.dream_cycle import DreamPhase, DreamReport, PhaseResult
+from luna.dream._legacy_cycle import DreamPhase, DreamReport, PhaseResult
 
 
 def _make_dream_report(
@@ -28,7 +28,7 @@ def _make_dream_report(
             PhaseResult(
                 phase=DreamPhase.CONSOLIDATION,
                 data={
-                    "mean_psi": [0.25, 0.35, 0.25, 0.15],
+                    "mean_psi": [0.260, 0.322, 0.250, 0.168],
                     "drift_from_psi0": drift,
                     "num_entries": 50,
                 },

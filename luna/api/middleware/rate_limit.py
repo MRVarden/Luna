@@ -46,9 +46,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._lock = asyncio.Lock()
 
         if self._rpm <= 0:
-            log.info("API rate limiting disabled (rate_limit_rpm=%d)", self._rpm)
+            log.debug("API rate limiting disabled (rate_limit_rpm=%d)", self._rpm)
         else:
-            log.info("API rate limiting enabled: %d requests/minute", self._rpm)
+            log.debug("API rate limiting enabled: %d requests/minute", self._rpm)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -71,11 +71,32 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         return direct_ip
 
+    # Sweep stale IPs every N requests to prevent unbounded memory growth.
+    _SWEEP_INTERVAL: int = 100
+    _request_count: int = 0
+
     def _purge_expired(self, timestamps: deque[float], now: float) -> None:
         """Remove timestamps older than the sliding window."""
         cutoff = now - _WINDOW_SECONDS
         while timestamps and timestamps[0] < cutoff:
             timestamps.popleft()
+
+    def _sweep_stale_entries(self, now: float) -> None:
+        """Remove IPs whose deque is empty or fully expired.
+
+        Called periodically (every _SWEEP_INTERVAL requests) to prevent
+        the _window dict from growing indefinitely with abandoned IPs.
+        Must be called while holding self._lock.
+        """
+        cutoff = now - _WINDOW_SECONDS
+        stale_keys = [
+            ip for ip, ts in self._window.items()
+            if not ts or ts[-1] < cutoff
+        ]
+        for key in stale_keys:
+            del self._window[key]
+        if stale_keys:
+            log.debug("Rate limiter swept %d stale IPs", len(stale_keys))
 
     # ------------------------------------------------------------------
     # Middleware dispatch
@@ -94,6 +115,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         now = time.monotonic()
 
         async with self._lock:
+            # Periodically sweep stale IP entries to bound memory growth.
+            self._request_count += 1
+            if self._request_count % self._SWEEP_INTERVAL == 0:
+                self._sweep_stale_entries(now)
+
             timestamps = self._window[client_ip]
             self._purge_expired(timestamps, now)
 

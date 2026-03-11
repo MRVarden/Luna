@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "luna"
+version = "5.3.0"
+description = "Computational Consciousness Engine — orchestrator of the Luna 4-agent ecosystem"
+license = "CC-BY-NC-4.0"
+requires-python = ">=3.11"
+authors = [
+    {name = "Varden"},
+    {email = "yt.contact.aragogix@gmail.com"},
+]
+dependencies = [
+    "luna-common>=5.3.0",
+    "numpy>=1.24",
+    "typer>=0.9",
+    "fastapi>=0.100",
+    "httpx>=0.26",
+]
+
+[project.urls]
+Homepage = "https://github.com/MRVarden/Luna"
+
+[project.scripts]
+luna = "luna.__main__:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["luna*"]
+exclude = ["tests*"]

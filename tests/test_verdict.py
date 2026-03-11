@@ -74,31 +74,37 @@ class TestVerdictRunner:
         assert perf.passed is True
         assert perf.value > 0
 
-    def test_stability_criterion(self, runner):
-        """Stability criterion checks low variance."""
+    def test_no_catastrophic_regression(self, runner):
+        """No catastrophic regression checks worst-case delta."""
         baseline = [0.5] * 10
-        conscious = [0.7] * 10  # Zero variance
+        conscious = [0.7] * 10  # All improve
         verdict = runner.evaluate(baseline, conscious, [0.8] * 20)
 
-        stability = next(c for c in verdict.criteria if c.name == "stability")
-        assert stability.passed is True
-        assert stability.value == 0.0
+        criterion = next(
+            c for c in verdict.criteria if c.name == "no_catastrophic_regression"
+        )
+        assert criterion.passed is True
+        # Worst delta is +0.2 which is > -0.236
+        assert criterion.value >= 0.0
 
-    def test_high_variance_fails_stability(self):
-        """High variance fails stability criterion."""
-        runner = VerdictRunner(stability_max_variance=0.001)
-        baseline = [0.5] * 10
-        conscious = [0.1, 0.9, 0.1, 0.9, 0.1, 0.9, 0.1, 0.9, 0.1, 0.9]
+    def test_catastrophic_regression_fails(self):
+        """A large single-task decline fails the regression criterion."""
+        runner = VerdictRunner()
+        baseline = [0.5, 0.5, 0.5, 0.9]
+        conscious = [0.7, 0.7, 0.7, 0.3]  # Last task drops 0.6
         verdict = runner.evaluate(baseline, conscious, [0.8] * 20)
 
-        stability = next(c for c in verdict.criteria if c.name == "stability")
-        assert stability.passed is False
+        criterion = next(
+            c for c in verdict.criteria if c.name == "no_catastrophic_regression"
+        )
+        assert criterion.passed is False
+        assert criterion.value < -0.236
 
     def test_coherence_criterion(self, runner):
-        """Coherence checks PHI_IIT above threshold."""
+        """Coherence checks PHI_IIT above threshold (80%)."""
         baseline = [0.5] * 10
         conscious = [0.7] * 10
-        # 90% above 0.618
+        # 90% above 0.618 — passes 80% threshold
         phi_iit = [0.8] * 18 + [0.5] * 2
         verdict = runner.evaluate(baseline, conscious, phi_iit)
 
@@ -137,6 +143,26 @@ class TestVerdictRunner:
 
         adapt = next(c for c in verdict.criteria if c.name == "adaptability")
         assert adapt.passed is True
+
+    def test_effect_size_criterion(self, runner):
+        """Effect size checks that positive gains dominate."""
+        baseline = [0.5] * 10
+        conscious = [0.7] * 10  # All positive deltas
+        verdict = runner.evaluate(baseline, conscious, [0.8] * 20)
+
+        effect = next(c for c in verdict.criteria if c.name == "effect_size")
+        assert effect.passed is True
+        assert effect.value == 1.0  # All deltas positive
+
+    def test_effect_size_fails_when_mixed(self, runner):
+        """Effect size fails when most change is negative."""
+        baseline = [0.5, 0.5, 0.5, 0.1]
+        conscious = [0.3, 0.3, 0.3, 0.2]  # Most tasks decline
+        verdict = runner.evaluate(baseline, conscious, [0.8] * 20)
+
+        effect = next(c for c in verdict.criteria if c.name == "effect_size")
+        # Positive: 0.1, negative sum: 0.6 → ratio 0.1/0.7 ≈ 0.14 < 0.618
+        assert effect.passed is False
 
     def test_five_criteria(self, runner):
         """Verdict always has exactly 5 criteria."""

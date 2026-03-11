@@ -23,8 +23,8 @@ async def dream_status(orch: object = Depends(get_orchestrator)) -> dict:
             "total_dream_time": status.total_dream_time,
         }
 
-    dream = getattr(orch, "_dream", None)
-    if dream is not None:
+    dream = getattr(orch, "dream_cycle", None)
+    if dream is not None and hasattr(dream, "get_status"):
         return dream.get_status()
 
     raise HTTPException(status_code=503, detail="dream subsystem not available")

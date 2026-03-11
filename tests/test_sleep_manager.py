@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from luna.dream.dream_cycle import DreamPhase, DreamReport, PhaseResult
+from luna.dream._legacy_cycle import DreamPhase, DreamReport, PhaseResult
 from luna.dream.sleep_manager import SleepManager, SleepState, SleepStatus
 
 

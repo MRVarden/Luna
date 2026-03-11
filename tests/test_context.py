@@ -183,12 +183,7 @@ class TestContextBuilder:
         )
 
         cs = ConsciousnessState(agent_name="LUNA")
-        psi_others = [
-            np.array([0.50, 0.10, 0.15, 0.25]),
-            np.array([0.10, 0.15, 0.50, 0.25]),
-            np.array([0.25, 0.10, 0.15, 0.50]),
-        ]
-        new_psi = cs.evolve(psi_others, info_deltas=grad.as_list())
+        new_psi = cs.evolve(info_deltas=grad.as_list())
 
         # Simplex preserved: all >= 0 and sum ~= 1.0
         assert np.all(new_psi >= -1e-10)

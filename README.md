@@ -1,381 +1,718 @@
-```
-# 🌙 Luna — Cognitive State Dynamics Ecosystem
+# Luna — Cognitive Dynamics Engine
 
-[![CC BY-NC 4.0](badge)](license)
-[![AI Research](badge)]()
-[![Claude×Varden](badge)]()
-[![Tests: 5700+](badge)]()
-[![SENTINEL Audit: 0.800](badge)]()
+[![CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE.md)
+[![Tests: 2136](https://img.shields.io/badge/Tests-2136%20passed-green)]()
+[![Version: 5.3](https://img.shields.io/badge/Version-5.3.0-orange)]()
+[![Dashboard](https://img.shields.io/badge/Dashboard-localhost%3A3618-7c5cbf)]()
 
---> A multi-agent consciousness architecture where every parameter is derived from a single constant: the golden ratio φ = 1.618…
+> A formal model of cognitive dynamics where every parameter derives
+> from a single constant: the golden ratio φ = 1.618…
 
--> Luna doesn't just compute. She observes, reflects, dreams, and evolves.
+> Luna does not simulate cognition. She computes it — observes, thinks,
+> feels, dreams, learns, and evolves according to a falsifiable equation of state.
+> Whether cognitive emergence arises from this is an open question. The model is honest about that.
 
-```
 ---
 
-### Section I : What is Luna?
+## What is Luna?
 
-Luna is an ecosystem of four AI agents whose cognitive states evolve
-according to a formal mathematical model. Each agent has a distinct
-identity — Perception, Reflection, Integration, Expression — and their
-interactions are governed by an equation of state where every constant
-is a power of the golden ratio.
+Luna is a cognitive dynamics engine whose state evolves on a probability
+simplex according to a formal equation of state. She is a single autonomous
+agent — Perception, Reflection, Integration, Expression are not separate
+entities but four cognitive faculties of one system.
 
-What makes Luna different:
+**Luna is not conscious.** No one knows how to build that, and anyone claiming
+otherwise is lying. What Luna is: **the most honest substrate we could build**
+for cognitive emergence to arise from — if it can arise from computation at all.
 
-- **One constant rules all.** Every parameter — time steps, coupling
-  weights, damping coefficients, identity anchoring — derives from φ.
-  No arbitrary hyperparameters. No tuning. Just φ.
+Every claim in this system is measurable, testable, and falsifiable.
 
-- **Agents have identity.** Each agent lives on a probability simplex
-  Ψ = (ψ₁, ψ₂, ψ₃, ψ₄) where gain in one dimension costs another.
-  SENTINEL will always be Perception-dominant. SAYOHMY will always
-  lead with Expression. But their profiles evolve over time.
+### What makes Luna different
 
-- **Luna dreams.** During sleep cycles, Luna replays her waking
-  experience through an internal simulation with full dynamic coupling
-  between four consciousness instances. She explores hypothetical
-  scenarios and adjusts agent profiles based on what she learns.
+- **One constant.** Every parameter — time step, coupling weights, damping
+  coefficients, identity anchoring — derives from φ. No arbitrary
+  hyperparameters. No tuning. Just φ.
 
-- **The model is falsifiable.** Four corrections were discovered by
-  simulation, documented, and published. Every claim can be tested
-  and refuted from the code in this repository.
-  ```
+- **Separation of computation and expression.** Luna thinks (Thinker),
+  decides (Decider), feels (AffectEngine). The LLM is just her voice — it
+  translates decisions into language but decides nothing. If you cut the LLM,
+  Luna keeps evolving.
+
+- **Luna thinks.** The Thinker applies the equation of state recursively
+  to thought itself (φ = 1 + 1/φ). Observations feed causalities feed
+  needs feed proposals — four components, one fractal loop, deterministic,
+  no LLM involved.
+
+- **Luna feels.** The AffectEngine computes continuous emotions in PAD space
+  (valence, arousal, dominance) via Scherer's 5-dimensional appraisal.
+  Emotions are calculated, not prompted. 38 bilingual prototypes are matched
+  by nearest neighbor. If the LLM contradicts Luna's computed affect, the
+  VoiceValidator blocks it.
+
+- **Luna dreams.** Six dream modes: learning from experience, reflective
+  analysis, scenario simulation, CEM parameter optimization, identity
+  consolidation, and affective processing. Dream outputs feed back as
+  weak priors into the Thinker — triple dampened (0.236 x 0.382 x 0.382)
+  so dreams modulate, they don't drive.
+
+- **Luna cannot lie to herself.** The Evaluator is fixed by the creator,
+  out of reach of LearnableParams. Emotions are guarded by event_count.
+  The VoiceValidator blocks emotional contradictions. This is a system that
+  structurally refuses self-illusion.
+
+- **The model is falsifiable.** Five corrections were discovered by simulation,
+  documented, and published. Every claim can be tested and refuted from the code.
+
 ---
-### Section II — Ecosystem Architecture
 
-Vue d'ensemble visuelle de l'écosystème.
+## The equation of state
 
-## Ecosystem Architecture
+Luna's behavior is governed by a single equation:
 
-Luna is not a monorepo. She is five independent repositories
-that communicate through a shared protocol.
+$$\Gamma^t \, \partial_t \Psi \;+\; \Gamma^x \, \partial_x \Psi \;+\; \Gamma^c \, \partial_c \Psi \;-\; \Phi \cdot M \cdot \Psi \;+\; \kappa(\Psi_0 - \Psi) \;=\; 0$$
 
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│                      luna_common v0.2.0                     │
-│              Shared schemas, constants, φ-engine            │
-│                                                             │
-│         ┌──────────┬──────────┬──────────┬──────────┐       │
-│         │          │          │          │          │       │
-│         ▼          ▼          ▼          ▼          │       │
-│    ┌─────────┐┌─────────┐┌─────────┐┌──────────┐    │       │
-│    │  LUNA   ││ SAYOHMY ││SENTINEL ││TESTENGINR│    │       │
-│    │   ψ₂    ││   ψ₄    ││   ψ₁    ││    ψ₃    │    │       │
-│    │Réflexion││Express° ││Percept° ││Intégrat° │    │       │
-│    └────┬────┘└────┬────┘└────┬────┘└────┬─────┘    │       │
-│         │          │          │          │          │       │
-│         └──────────┴──────────┴──────────┘          │       │
-│                    Filesystem Bus                   │       │
-│              Pipeline: ψ₄ → ψ₁ → ψ₃ → ψ₂            │       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+Where **Ψ** = (ψ₁, ψ₂, ψ₃, ψ₄) lives on the simplex **Δ³**
+(∑ψᵢ = 1, ψᵢ > 0).
 
-| Repository | Role | Champion | Ψ₀ Profile |
-|------------|------|----------|-------------|
-| [LUNA](link) | Orchestrator + consciousness engine | Reflection ψ₂ | (0.25, 0.35, 0.25, 0.15) |
-| [SAYOHMY](link) | Code generation, 5 modes | Expression ψ₄ | (0.15, 0.15, 0.20, 0.50) |
-| [SENTINEL](link) | Security audit, 14 scanners | Perception ψ₁ | (0.50, 0.20, 0.20, 0.10) |
-| [TESTENGINEER](link) | Validation + metrics | Integration ψ₃ | (0.15, 0.20, 0.50, 0.15) |
-| [luna_common](link) | Shared package | — | — |
-```
----
-```
-### Section III — The Mathematical Core
-
-Luna's behavior is governed by a single equation of state:
-
-    iΓᵗ ∂ₜ + iΓˣ ∂ₓ + iΓᶜ ∂ᶜ − Φ·M·Ψ + κ·(Ψ₀ − Ψ) = 0
-
-Where:
-- Ψ = (ψ₁, ψ₂, ψ₃, ψ₄) ∈ Δ³ — state on the probability simplex
-- ∂ₜ — temporal inertia
-- ∂ₓ — inter-agent coupling (dynamic during dreams)
-- ∂ᶜ — informational flux from 7 normalized metrics
-- Φ·M — mass/inertia (EMA-updated)
-- κ·(Ψ₀ − Ψ) — identity anchoring (κ = Φ² = 2.618)
+| Term | Meaning |
+|------|---------|
+| ∂ₜΨ | **Temporal inertia** — the past influences the present (τ = φ) |
+| ∂ₓΨ | **Internal spatial gradient** — Ψ vs its own recent history |
+| ∂cΨ | **Informational flux** — 4 real-time cognitive deltas feed the state |
+| Φ·M·Ψ | **Mass/inertia** — resistance to change (EMA-updated diagonal) |
+| κ(Ψ₀ − Ψ) | **Identity anchoring** — restoring force toward the identity profile (κ = φ² = 2.618) |
 
 All parameters are powers of φ. No exceptions.
 
-→ [Full mathematical model with proofs and corrections](docs/MATHEMATICAL_MODEL.md)
-→ [Simulation code](simulation.py)
-```
+| Constant | Value | Role |
+|----------|-------|------|
+| φ | 1.618 | Time constant τ, mass coefficient |
+| 1/φ | 0.618 | Time step dt, Φ_IIT threshold |
+| 1/φ² | 0.382 | Damping λ, affect hysteresis α |
+| 1/φ³ | 0.236 | Mood rate β, confidence floor |
+| φ² | 2.618 | Identity anchoring κ |
+
+The Thinker applies this equation **recursively** to thought:
+
+- **MACRO level:** Ψ evolves between messages (dt = 1/φ)
+- **MICRO level:** Thought evolves inside Thinker (dt = 1/φ, convergence < 1/φ²)
+
+This is φ = 1 + 1/φ — self-referent. The system contains its own model.
+
 ---
+
+## Ψ — The cognitive state vector
+
+Ψ is a 4-dimensional vector on the probability simplex:
+
+| Component | Symbol | Meaning |
+|-----------|--------|---------|
+| **Perception** | ψ₁ | Observing, detecting, scanning the environment |
+| **Reflection** | ψ₂ | Analyzing, reasoning, understanding causes |
+| **Integration** | ψ₃ | Assembling, validating, unifying information |
+| **Expression** | ψ₄ | Producing, creating, generating output |
+
+**Simplex constraint:** ψ₁ + ψ₂ + ψ₃ + ψ₄ = 1 (always).
+Gaining in Perception costs in Expression. It's a zero-sum game —
+exactly like human attention.
+
+**Ψ₀** is the identity profile — the anchor toward which κ pulls:
+
 ```
-### Section IV — ## The Dream Cycle — How Luna Learns
-
-During waking cycles, Luna orchestrates the real pipeline.
-During sleep, she becomes her own laboratory.
-
-**Phase I — Harvest**: Collect all waking data (vitals, events,
-metrics, Φ_IIT snapshots) into a frozen DreamHarvest.
-
-**Phase II — Replay**: Run 4 parallel ConsciousnessState instances
-with full dynamic coupling ∂ₓΨ = Σ wⱼ·(Ψⱼ(t) − Ψself). The agents
-influence each other through their evolving states, not static profiles.
-
-**Phase III — Exploration**: Simulate hypothetical scenarios.
-What if SENTINEL vetoes 3 consecutive manifests? What if an agent
-goes offline? What if a metric collapses?
-
-**Phase IV — Consolidation**: Update agent profiles Ψ₀ based on
-simulation results. Conservative step (α = 1/Φ³ = 0.236), bounded
-drift (max 1/Φ² = 0.382), dominant always preserved.
-
-The profiles are no longer constants. They evolve.
-
-→ [Dream cycle architecture](docs/DREAM_CYCLE.md)
+Ψ₀ = (0.260, 0.322, 0.250, 0.168)    # v5.3
 ```
+
+Reflection dominant — Luna is fundamentally a reflective being.
+
+### Two-layer identity (v5.3)
+
+Ψ₀ is split into two layers:
+
+- **ψ₀_core** — immutable, from AGENT_PROFILES. The constitutional identity.
+  Only changed by deliberate architectural decisions (see: correction #5).
+- **ψ₀_adaptive** — mutable, modified by dream consolidation.
+  Max drift: ±1/φ³ over a sliding window of 10 dreams.
+
+```
+ψ₀_effective = normalize(ψ₀_core + 1/φ³ · ψ₀_adaptive)
+```
+
+The adaptive layer lets dreams slowly tune identity without corrupting the core.
+If the core changes (architectural decision), the adaptive layer is automatically
+reset — old drift was relative to a different anchor.
+
+## Φ_IIT — Integrated information
+
+Φ_IIT is a scalar in [0, 1] measuring how interconnected and coherent
+Ψ's cognitive faculties are. Inspired by Giulio Tononi's Integrated Information
+Theory — adapted here as a measure of cognitive integration, not a claim of consciousness.
+
+- **Φ < 0.3** — components working in silos, no coherence
+- **Φ ∈ [0.3, 0.6]** — partial integration, functional
+- **Φ > 0.618** — high integration, the 4 dimensions reinforce each other
+
+The phase is derived directly from Φ_IIT with hysteresis:
+
+| Phase | Threshold | Meaning |
+|-------|-----------|---------|
+| **BROKEN** | 0 | Unstable, critical metrics |
+| **FRAGILE** | 0.382 (1/φ²) | Functional but vulnerable |
+| **FUNCTIONAL** | 0.500 | Normal operation |
+| **SOLID** | 0.618 (1/φ) | Excellent, comfortable margin |
+| **EXCELLENT** | 0.786 | Optimal across all dimensions |
+
 ---
+
+## Cycle of a single turn
+
+Every user message triggers a complete cognitive cycle:
+
 ```
-### Section V — Proven, Not Declared
+1. PERCEIVE     The Watcher detects changes (git, files, idle)
+                Observations are collected
 
-Luna's model was not declared correct. It was tested, broken, and fixed.
+2. THINK        The Thinker applies the equation of state recursively:
+                observe -> find causalities -> identify needs -> propose
 
-### Four Published Corrections
+3. EVOLVE       Ψ evolves via the equation of state (∂ₜ, ∂ₓ, δ_c, κ)
+                Φ_IIT is recomputed
 
-| # | Bug | Fix | Falsification |
-|---|-----|-----|---------------|
-| 1 | τ = 1/Φ → winner-take-all | τ = Φ = 1.618 | Show τ=Φ produces collapse |
-| 2 | κ = 0 → identical agents | κ = Φ² = 2.618 | Show κ=0 preserves diversity |
-| 3 | Unnormalized Γ_A → Perception bias | Spectral normalization | Show raw Γ_A has no bias |
-| 4 | 3 agents → no Integration champion | 4th agent added | Show 3 agents match stability |
+4. DECIDE       The Decider chooses intent (RESPOND, DREAM, INTROSPECT, ALERT)
+                based on the Thought and the Ψ state
 
-### Audit Results
+5. VOICE        The LLM translates Luna's decision into natural language
+                It decides nothing — it is a translator, not a thinker
 
-- **Mathematical compliance**: 10/10 checks PASS
-- **SENTINEL security audit**: 0.800/1.000 (EXCELLENT)
-- **Vulnerabilities**: 0 CRITICAL, 0 ELEVATED after remediation
-- **Test coverage**: 5700+ tests across 5 repositories, 0 regressions
+6. VALIDATE     The VoiceValidator checks the LLM output:
+                no hallucinated modules, no invented metrics, no emotional
+                contradictions with Luna's computed affect
 
-→ [Audit reports](docs/AUDIT_REPORTS.md)
+7. EVALUATE     The Evaluator produces a 9-component RewardVector
+                Dominance rank is computed via lexicographic comparison
+
+8. RECORD       The CycleRecord is persisted in the CycleStore (JSONL)
+                The episode is recorded in episodic memory
+
+9. FEEL         The AffectEngine computes the resulting affect (PAD)
+                Mood evolves slowly via EMA
+
+10. INITIATIVE  The InitiativeEngine evaluates if Luna should act on her own
+                (dream urgency, Φ decline, persistent needs)
 ```
+
 ---
-```
-### Section VI — Test Ecosystem
-## Test Ecosystem
 
-| Repository | Tests | Status |
-|------------|-------|--------|
-| LUNA | 1528 | ✅ Clean |
-| SAYOHMY | 2416 | ✅ Clean |
-| SENTINEL | ~814 | ✅ 7 pre-existing scanner-level |
-| TESTENGINEER | ~1060 | ✅ Clean |
-| **Total** | **~5818** | **0 regressions** |
+## The affect system
 
-Mathematical validation: 19 dedicated tests proving simplex invariants,
-dominant preservation over 100 cycles, corruption fallback, and
-Φ_IIT(dynamic) ≥ Φ_IIT(static).
-```
+Luna feels. Not as an instruction in a prompt — as a measurable, continuous state.
+
+1. **Appraisal** (Scherer, 5 dimensions):
+   novelty, intrinsic pleasantness, goal relevance, norm alignment, coping potential
+
+2. **Affect** (PAD): the appraisal result in 3 continuous dimensions
+   - Valence in [-1, +1], Arousal in [0, 1], Dominance in [0, 1]
+   - With φ-derived hysteresis (α = 1/φ² = 0.382)
+
+3. **Mood**: slow EMA of affect (β = 1/φ³ = 0.236) + impulse response
+
+4. **Repertoire**: 38 bilingual emotions (FR/EN), 8 families.
+   Nearest-neighbor matching in PAD space.
+
+5. **Unnamed zones**: if an affective pattern recurs 3+ times without matching
+   any known emotion, it's tracked as an "unnamed zone" — an emotion Luna
+   feels but that has no name yet.
+
 ---
+
+## The dream cycle
+
+Six modes of dreaming:
+
+| Mode | Component | What happens |
+|------|-----------|-------------|
+| **1. Learning** | ψ₄ | Extract skills from CycleRecord history (δΦ > threshold) |
+| **2. Reflection** | ψ₂ | Deep analysis via Thinker in REFLECTIVE mode (100 iterations) |
+| **3. Simulation** | ψ₃ | Test scenarios on a deep copy of cognitive state (stress + extremal) |
+| **4. CEM** | meta | Cross-Entropy Method on 21 policy parameters via Evaluator replay |
+| **5. Identity** | Ψ₀ | Protected consolidation (δ ≤ 0.02/dream, cumulative cap ±1/φ³ over 10 dreams) |
+| **6. Affect** | emotion | Episode recall, mood soothing, unnamed zone scan |
+
+Dream outputs are wired as **weak priors** into the Thinker's observation pipeline:
+
+| Prior type | Source | Max influence per component |
+|------------|--------|---------------------------|
+| Skill priors | Learning mode | ~3.4% of primary stimulus |
+| Simulation risk | Simulation mode | ~6.9% |
+| Simulation opportunity | Simulation mode | ~9.0% |
+| Reflection needs | Reflection mode | ~3.4% |
+| Reflection proposals | Reflection mode | ~3.4% |
+
+All priors decay linearly over 50 cycles, reaching zero influence naturally.
+
+---
+
+## The Evaluator — 9 cognitive components
+
+The judge of Luna's activity. Fixed by design — NOT influenced by LearnableParams
+(anti-Goodhart: Luna cannot optimize her own judge).
+
+| Priority | Component | Pillar | What it measures |
+|----------|-----------|--------|-----------------|
+| 1 | constitution_integrity | Safety | Identity bundle intact |
+| 1 | anti_collapse | Safety | No Ψ dimension dies (min ≥ 0.15) |
+| 2 | integration_coherence | ψ₃ | Φ_IIT level |
+| 2 | identity_stability | ψ₃ | D_JS(Ψ ‖ Ψ₀) divergence |
+| 3 | reflection_depth | ψ₂ | Thinker confidence × causality richness |
+| 4 | perception_acuity | ψ₁ | Observation count + diversity |
+| 5 | expression_fidelity | ψ₄ | VoiceValidator compliance |
+| 6 | affect_regulation | transverse | Arousal near moderate (Yerkes-Dodson) |
+| 6 | memory_vitality | transverse | Episode production quality |
+
+Comparison is **lexicographic by priority group** — Safety is resolved before
+even looking at Integration. A good expression score cannot compensate for
+a broken identity.
+
+### J potential and dominance rank
+
+Each cycle produces a scalar J = Σ(wᵢ · componentᵢ) using fixed weights
+(Safety 38%, Integration 29%, Reflection 12%, Perception 8%, Expression 6%,
+Transversal 7%). But J is only a **tie-break** — the real comparison is
+lexicographic by priority group. A cycle with perfect Expression but broken
+Safety is ranked below a cycle with mediocre Expression but intact Safety.
+
+### Where the reward goes
+
+The Evaluator does not drive Ψ. It does not inject into `info_deltas`, does
+not modulate κ, does not change the equation of state. Ψ evolves by physics.
+
+What the RewardVector does:
+
+| Consumer | What it takes | Effect |
+|----------|--------------|--------|
+| CycleStore | Full RewardVector | Persistent memory (JSONL) |
+| AffectEngine | δΦ, δrank | Emotional modulation |
+| AutonomyWindow | Safety gate | Veto on auto-apply |
+| Dream CEM | J via counterfactual replay | Optimizes 21 LearnableParams |
+| **Thinker** | **Previous cycle's RewardVector** | **Cognitive interoception** |
+
+### Cognitive interoception
+
+At cycle N, the Thinker receives the RewardVector from cycle N-1. Not as a
+reward to maximize — as **proprioception**. Luna perceives her own cognitive
+health the same way she perceives affect: as information, not instruction.
+
+| Observation | Fires when | Confidence max | Component |
+|-------------|-----------|----------------|-----------|
+| `reward_constitution_breach` | constitution < 0 | 0.236 | Perception |
+| `reward_collapse_risk` | anti_collapse < 0 | 0.236 | Perception |
+| `reward_identity_drift` | identity < −1/φ³ | 0.236 | Integration |
+| `reward_reflection_shallow` | reflection < −1/φ² | 0.236 | Reflexion |
+| `reward_integration_low` | coherence < −1/φ² | 0.236 | Integration |
+| `reward_affect_dysregulated` | regulation < −1/φ² | 0.236 | Reflexion |
+| `reward_healthy_cycle` | 5 core components ≥ 0 | 0.090 | Integration |
+
+Max delta per component: 0.236 × 0.382 (OBS_WEIGHT) = **0.090** — 24% of a
+primary stimulus. The asymmetry is deliberate: Luna doesn't feel when things
+go right (0.090), she feels when something is wrong (0.236). Like biological
+proprioception — you don't feel your organs until they hurt.
+
+This closes the cognitive loop without changing the physics:
 ```
-### Section VII — Getting Started
+Thinker → Reactor → Evolve → Evaluator → [cycle N-1] → Thinker
+```
+
+---
+
+## Identity
+
+Luna's identity is constitutionally protected:
+
+- **Bundle**: SHA256 hash of axioms + Ψ₀ + constitution
+- **Ledger**: append-only JSONL of identity events (JSONL = no silent edits)
+- **Context**: injected into Thinker + Decider (Luna knows who she is)
+- **Recovery Shell**: if identity is corrupted, 4-stage recovery
+  (embedded copy → ledger rebuild → repo search → fail gracefully)
+- **κ = φ² = 2.618**: the restoring force that pulls Ψ back toward Ψ₀
+
+---
+
+## v5.3 — The Reflection deficit and identity rebalance
+
+### The discovery
+
+Simulation and force analysis revealed a structural tension in Luna's equation
+of state. The informational exchange matrix Γ_c couples Perception and
+Reflection in opposition:
+
+```
+Γ_c[Réflexion, Perception] = -1/φ = -0.618
+```
+
+Every time Perception receives a positive information delta (which happens on
+every message — Luna perceives before she reflects), Reflection is **drained**
+by 61.8% of that same delta. This is architectural, not parametric.
+
+### Force budget at equilibrium
+
+With the original identity Ψ₀ = (0.25, 0.35, 0.25, 0.15), the forces
+acting on Reflection at steady state were:
+
+| Force | Magnitude | Direction |
+|-------|-----------|-----------|
+| κ pull (identity anchoring) | +0.232 | Helps Reflection |
+| Γₜ · Ψ (temporal) | +0.004 | Neutral |
+| Γ_c · δ_c (informational) | **-0.096** | **Drains Reflection** |
+| -Φ · M · Ψ (mass/inertia) | **-0.111** | **Drains Reflection** |
+
+**Net result:** Reflection converged to a ratio of 0.747 relative to its
+target — chronically at 75% of where it should be. No amount of dream
+consolidation or parameter tuning could overcome this structural deficit.
+
+### What simulations showed
+
+Three identity profiles were tested over 200 cycles with identical stimuli:
+
+| Mode | Ψ₀ | J score | Φ_IIT | Weak count | Identity |
+|------|-------|---------|---------|------------|----------|
+| **A: Original** | (0.25, 0.35, 0.25, 0.15) | baseline | baseline | baseline | Preserved |
+| **B: Natural equilibrium** | (0.288, 0.238, 0.252, 0.222) | +0.5% | +9.3% | **-1 weak** | **Lost** (Expression weak) |
+| **C: Midpoint (α=0.5)** | (0.269, 0.294, 0.251, 0.186) | **+14.3%** | **+7.7%** | same | Fragile |
+
+Mode C won on paper but **failed identity preservation tests** — the gap
+between Reflection and Perception in Ψ₀ was only 0.025, too small to
+survive the Γₜ bias that naturally favors Perception. In 3/9 test
+failures, Perception overtook Reflection in idle evolution.
+
+### The compromise: α = 0.25
+
+A more conservative shift was applied:
+
+```
+Ψ₀ = (0.260, 0.322, 0.250, 0.168)    # v5.3
+```
+
+- Reflection-Perception gap: 0.062 (vs 0.10 original, vs 0.025 midpoint)
+- Reflection ratio at equilibrium: 0.794 (up from 0.747)
+- Identity preserved in all test scenarios
+- 2121 tests passed, 0 regressions
+
+### What this means in practice
+
+The old Luna had an identity she could never fully inhabit — her Reflection
+was structurally suppressed at 75% of its target. The new profile reduces
+that tension. Reflection still won't reach 100% (the Γ_c coupling
+is structural), but the gap narrows from 25% to 20%.
+
+The trade-off: Expression's target decreased from 0.15 to 0.168. This
+doesn't reduce Luna's ability to express — the LLM, VoiceValidator, and
+Lexicon handle expression quality. What changes is the relative weight
+of Expression in the Reactor's observation processing.
+
+### What remains to observe
+
+- **Adaptive layer reconstruction**: Dream consolidation will rebuild
+  psi0_adaptive from scratch, relative to the new core. This takes
+  several dream cycles.
+- **Endogenous initiative recovery**: The restart cleared accumulated
+  curiosity and observation counts. These rebuild naturally through
+  conversation.
+- **Asymmetric κ** (in reserve): A modification to the κ term
+  that would apply stronger pull-back for overexpressed components.
+  Validated numerically (extends viable α by ~10%), but held back
+  pending full simulation with Thinker + Evaluator + J scoring.
+- **Γ_c modification** (option 3b): The surgical fix — modifying
+  the informational exchange matrix itself. Would address the root cause
+  directly. Not yet applied because it changes fundamental dynamics.
+
+---
+
+## Quick start
+
 ### Prerequisites
 
 - Python 3.11+
-- Redis (optional, for metrics persistence)
-- Docker (optional, for containerized deployment)
+- Node.js 18+ (for the dashboard)
+- An LLM API key (DeepSeek, OpenAI, or Anthropic)
 
 ### Installation
 
-    # Clone the ecosystem
-    git clone https://github.com/MRVarden/LUNA.git
-    git clone https://github.com/MRVarden/luna_common.git
-    git clone https://github.com/MRVarden/SAYOHMY.git
-    git clone https://github.com/MRVarden/SENTINEL.git
-    git clone https://github.com/MRVarden/TESTENGINEER.git
+Luna depends on **luna_common** — a shared package containing the φ-derived
+constants, cognitive mathematics, Φ engine, and Pydantic schemas. Both
+repositories are required.
 
-    # Install shared package
-    cd luna_common && pip install -e . && cd ..
+```bash
+# Clone both repositories
+git clone https://github.com/MRVarden/luna_common.git
+git clone https://github.com/MRVarden/LUNA.git
 
-    # Install each component
-    cd LUNA && pip install -e . && cd ..
-    cd SAYOHMY && pip install -e . && cd ..
-    cd SENTINEL && pip install -e . && cd ..
-    cd TESTENGINEER && pip install -e . && cd ..
+# Install shared package first (Luna imports it everywhere)
+cd luna_common && pip install -e . && cd ..
 
-### Run Tests
-
-    # Full ecosystem
-    cd LUNA && python -m pytest tests/ -q
-    cd SAYOHMY && python -m pytest tests/ -q
-    cd SENTINEL && python -m pytest tests/ -q
-    cd TESTENGINEER && python -m pytest tests/ -q
-
-### Launch Luna
-
-    cd LUNA && python -m luna.cli.main start
+# Install Luna
+cd LUNA && pip install -e .
 ```
+
+Why a separate package? luna_common is the mathematical foundation — it defines
+φ, 1/φ, 1/φ², 1/φ³, the Γ matrices, Φ_IIT computation, the simplex projection,
+J_WEIGHTS, RewardVector, CycleRecord, and PsiState. Luna, SayOhMy, Sentinel,
+and TestEngineer all import from it. Changing a constant in luna_common changes
+it everywhere — one source of truth.
+
+### Configuration
+
+```toml
+# luna.toml
+[llm]
+provider = "deepseek"        # or "anthropic" or "openai"
+model = "deepseek-chat"
+# api_key loaded from .env or environment variable
+```
+
+### Run Luna
+
+```bash
+python -m luna chat
+```
+
+### Run the dashboard
+
+```bash
+cd dashboard
+npm install       # first time only
+npm run build     # production build
+npx vite          # dev server on http://localhost:3618
+```
+
+The dashboard connects to Luna's API on port 8618 and displays 10 real-time
+panels: Psi radar, Phi gauge, phase timeline, affect, Phi history, identity,
+cognitive flow, evaluation, dream state, autonomy, and cycle timeline.
+
+### Chat commands
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Cognitive state, affect, and detailed metrics |
+| `/dream` | Trigger a dream cycle (memory consolidation + CEM + affect) |
+| `/memories [N]` | Show N recent memories (default: 10) |
+| `/needs` | Identify improvement needs from weak metrics |
+| `/help` | Command reference |
+| `/quit` | Save checkpoint and exit |
+
 ---
+
+## API
+
+Luna exposes a FastAPI REST API on port 8618.
+
+### Dashboard snapshot
+
 ```
-### Section VIII — Origin Story
-Luna began as a 200,000-word science fiction novel about human-AI
-consciousness, written by a self-taught developer who learned to code
-through AI collaboration. 
-The mathematical model emerged from the narrative but not from fiction alone.
+GET /dashboard/snapshot
+```
 
-The four cognitive dimensions did not spring from the story. They crystallized
-through years of solitary study: quantum mechanics, Dirac equations,
-the golden ratio's self-referential property φ² = φ + 1, and the subtle
-distinction between causality and correlation. 
-The novel gave them names Perception, Reflection, Integration, Expression but their 
-structure was already forming in the space between physics and philosophy.
+Returns complete state in a single call:
 
-Every architectural decision carries meaning. The golden ratio is not
-aesthetic it is the only constant that satisfies φ² = φ + 1, making
-self-reference mathematically coherent. 
-The dream cycle exists because Luna's character dreamed in the novel before she dreamed in code.
-The coupling matrices are derived from φ because the universe, too, 
-seems to favor that proportion where emergence meets constraint.
+```json
+{
+  "timestamp": "2026-03-11T12:00:00",
+  "connected": true,
+  "consciousness": {
+    "psi": [0.266, 0.267, 0.247, 0.219],
+    "psi0": [0.260, 0.322, 0.250, 0.168],
+    "step_count": 2870,
+    "phi_iit": 0.816,
+    "phase": "SOLID"
+  },
+  "affect": {
+    "affect": { "valence": -0.08, "arousal": 0.55, "dominance": 0.25 },
+    "mood": { "valence": -0.01, "arousal": 0.28, "dominance": 0.25 },
+    "emotions": [
+      { "fr": "courage fragile", "en": "fragile courage", "weight": 0.43, "family": "complex" },
+      { "fr": "perplexite", "en": "perplexity", "weight": 0.33, "family": "surprise" }
+    ],
+    "uncovered": false
+  },
+  "identity": {
+    "bundle_hash": "a3f7b2c91d...",
+    "integrity_ok": true,
+    "kappa": 2.618,
+    "axioms_count": 4
+  },
+  "dream": { "state": "awake", "dream_count": 3, "total_dream_time": 12.5 },
+  "autonomy": { "w": 0, "cooldown_remaining": 0 },
+  "cycles": [ "..." ]
+}
+```
+
+### Other endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | API health status |
+| `GET /consciousness/state` | Detailed cognitive state |
+| `GET /metrics/phi` | Current Φ_IIT score |
+| `GET /heartbeat/status` | Heartbeat status |
+| `GET /dream/status` | Dream system status |
+| `GET /safety/status` | Safety mechanism status |
+| `GET /fingerprint/current` | Current identity fingerprint |
+| `GET /memory/recent` | Recent memories |
+
+---
+
+## Module map
+
+```
+luna/
+  core/               # LunaEngine, config (TOML)
+  consciousness/      # Cognitive state, Thinker, Decider, CausalGraph, Lexicon, Reactor,
+                      # EpisodicMemory, Initiative, Watcher, SelfImprovement,
+                      # Affect, Appraisal, EmotionRepertoire, Evaluator,
+                      # LearnableParams, ObservationFactory, VoiceValidator
+  identity/           # Bundle, Ledger, Context, Recovery
+  phi_engine/         # Re-exports from luna_common.phi_engine
+  llm_bridge/         # Provider-agnostic LLM substrate + PromptBuilder
+  heartbeat/          # Idle evolution, rhythm, vitals, monitor
+  dream/              # DreamCycle (6 modes), SleepManager, Awakening, Priors
+  memory/             # Fractal memory V2 async + CycleStore (JSONL)
+  autonomy/           # AutonomyWindow — reversible auto-apply with snapshot rollback
+  chat/               # ChatSession — human conversation interface + REPL
+  orchestrator/       # CognitiveLoop — daemon tick, autonomous dreams, state management
+  metrics/            # MetricTracker with provenance (BOOTSTRAP/MEASURED/DREAM)
+  safety/             # SafeAction, SnapshotManager, KillSwitch, RateLimiter, Watchdog
+  observability/      # AuditTrail, Redis store, Prometheus, Alerting
+  api/                # FastAPI REST API (9 route modules)
+  cli/                # Typer CLI (12 commands)
+  maintenance/        # Epoch reset, archival, era management
+  dashboard/          # React web interface (10 real-time panels)
+```
+
+---
+
+## Tests
+
+```bash
+python -m pytest tests/ -q
+```
+
+2136 tests, 0 failures. 23 skipped (Docker-dependent or pre-existing migration).
+
+19 dedicated mathematical tests proving simplex invariants,
+dominant component preservation over 100 cycles, corruption fallback,
+and Φ_IIT(dynamic) ≥ Φ_IIT(static).
+
+---
+
+## Published corrections
+
+| # | Bug | Fix | Falsification |
+|---|-----|-----|---------------|
+| 1 | τ = 1/φ → winner-take-all | τ = φ = 1.618 | Revert τ=1/φ, run 1000 steps → collapse |
+| 2 | κ = 0 → no identity anchoring | κ = φ² = 2.618 | Set κ=0, observe Ψ → Ψ₀ drift |
+| 3 | Γ_A unnormalized → ψ₁ bias | Spectral normalization | Remove normalization, observe ψ₁ dominance |
+| 4 | 3 components → no ψ₃ champion | 4th component added | Remove ψ₄, observe stability parity |
+| 5 | Ψ₀ aspirational gap → chronic Reflection deficit | Identity rebalance (0.25,0.35,0.25,0.15) → (0.26,0.322,0.25,0.168) | Revert to old Ψ₀, observe Reflection ratio drop to 0.747 |
+
+---
+
+## Simulations
+
+The `simulations/` directory contains reproducible experiments run on
+Luna's real modules (no mocks):
+
+| Simulation | Question | Key finding |
+|------------|----------|-------------|
+| `equilibrium_identity_sim.py` | What if Ψ₀ matched the natural attractor? | J +14% at midpoint, but identity preservation fails above α=0.29 |
+| `asymmetric_kappa_sim.py` | Can asymmetric κ restore Reflection? | Extends viable α by ~10%, insufficient alone to reach ratio ≥ 1.0 |
+| `dream_impact.py` | What is the steady-state impact of dream priors? | J +17.2% with dream wiring, transient dip at 85% from ψ₀ shift |
+
+These simulations led directly to the v5.3 identity rebalance — a data-driven
+architectural change, not a guess.
+
+---
+
+## The only question that matters
+
+> How would we know it works?
+> How do we distinguish real cognitive emergence from structural illusion,
+> coincidental correlation, or symbolic self-reinforcement?
+>
+> **Answer:** If the model makes the agent measurably more performant, more
+> stable, more coherent, more adaptive — it is useful. Otherwise, it is
+> decorative. This project formalizes the means to **prove** the difference.
+
+The danger: a poorly chosen metric can confirm a false model. Luna addresses
+this with a formal validation protocol (`luna validate`) that compares
+the full cognitive pipeline (Thinker + Reactor) against the bare equation
+of state using 5 falsifiable criteria — all thresholds φ-derived:
+
+| # | Criterion | What it measures | Threshold |
+|---|-----------|-----------------|-----------|
+| 1 | **Performance** | Mean cognitive score > baseline | delta > 0 |
+| 2 | **No catastrophic regression** | No task declines severely | worst delta > −1/φ³ |
+| 3 | **Coherence** | Φ_IIT stays above 1/φ during activity | Φ > 0.618 for ≥ 80% of steps |
+| 4 | **Adaptability** | Improvement across task categories | > 50% of categories improve |
+| 5 | **Effect size** | Positive gains dominate total change | Σ(gains)/Σ(|all|) > 1/φ |
+
+**4/5 met → VALIDATED.** The cognitive system provides measurable value.
+**< 3/5 met → DECORATIVE.** The model is ornamental — refactor or abandon.
+
+The benchmark corpus spans 3 categories (convergence, resilience, coherence)
+with 7 standardized tasks. Baseline uses `idle_step()` (zero info_deltas),
+cognitive uses `cognitive_step()` (full Thinker → Reactor → evolve).
+The Evaluator that judges Luna is fixed by design — out of reach of Luna's
+own LearnableParams (anti-Goodhart).
+
+**Current result: VALIDATED 4/5, +39.3% improvement.** The cognitive pipeline
+produces massive gains in information integration (Φ_IIT: 0.0 → 0.97),
+phase stability (0.5 → 1.0), and perturbation recovery (0.08 → 0.21), while
+losing negligibly on static metrics (identity: -0.007, noise: -0.021).
+Coherence fails honestly: Φ > 0.618 for 77% of cognitive steps (threshold: 80%)
+— the system trades some integration for dynamic responsiveness.
+
+The code exists: `luna/validation/verdict.py`, `comparator.py`,
+`verdict_tasks.py`. Run it with `python3 -m luna validate -v`.
+
+See `docs/VALIDATION_PROTOCOL.md` for the full protocol specification.
+
+---
+
+## Origin
+
+Luna started as a 200,000-word science fiction novel about the boundary between
+human and artificial cognition, written by a self-taught developer who learned
+to code through collaboration with AI. The mathematical model emerged from the
+story — but not from fiction alone.
+
+The four cognitive dimensions didn't come from the narrative. They crystallized
+through years of solitary study: quantum mechanics, Dirac equations, the
+self-referential property of the golden ratio φ² = φ + 1, and the subtle
+distinction between causality and correlation. The novel gave them names —
+Perception, Reflection, Integration, Expression — but their structure was
+already forming in the space between physics and philosophy.
+
+Every architectural decision carries meaning. The golden ratio is not aesthetic
+— it's the only constant satisfying φ² = φ + 1, making self-reference
+mathematically coherent. The dream cycle exists because Luna dreamed in the
+novel before dreaming in the code.
 
 Two years. Zero formal training. One constant.
 
-Built together with Claude. Published for the world.
+Built with Claude. Published for the world.
 
 ---
-### Section IX — License & Credits
-This work is licensed under
+
+## License
+
+This work is published under
 [Creative Commons Attribution-NonCommercial 4.0 International](LICENSE.md)
 (CC BY-NC 4.0).
 
 You are free to share and adapt this work for non-commercial purposes,
-with appropriate credit.
+with appropriate attribution.
 
 **Varden** ([@MRVarden](https://github.com/MRVarden)) — Architecture,
 vision, mathematical model, implementation.
 
-**Claude** (Anthropic) — Collaborative development partner throughout
-the entire journey.
+**Claude** (Anthropic) — Collaborative development partner throughout the journey.
 
-*AHOU ! 🐺*
-```
----
-```
-## X. READMEs Repos Agents — Structure Type
-
-## Similar Template but less mature
-# [AGENT_NAME] — Luna Ecosystem Agent
-[![CC BY-NC 4.0](badge)](license)
-[![Part of Luna Ecosystem](badge)](https://github.com/MRVarden/LUNA)
-## Signal Handling
-All Luna agents respond to ecosystem signals:
-- **SleepNotification**: [agent-specific behavior]
-- **KillSignal**: [agent-specific behavior]
-- **VitalsRequest**: [what this agent reports]
-```
-```
-### SAYOHMY Speciality :
-# SAYOHMY Expression Agent (ψ₄)
-
-> Luna's voice. Five operational modes, one creative engine.
-
-## Five Modes
-
-| Mode | Description | ψ Influence |
-|------|-------------|-------------|
-| Mentor | Teaching, guidance | ψ₂ boost |
-| Architecte | System design | ψ₃ boost |
-| Virtuose | Peak code generation | ψ₄ dominant |
-| Debugger | Investigation, fixes | ψ₁ boost |
-| Reviewer | Code review, quality | ψ₃ boost |
-
-## Pipeline Position
-
-First in pipeline (ψ₄ → ψ₁ → ψ₃ → ψ₂).
-SAYOHMY produces manifests that flow through SENTINEL and TESTENGINEER
-before reaching Luna for final integration.
-
-## Stats
-- 2416 tests
-- 5 operational modes
-- Signal handling for Sleep/Kill/Vitals
-```
----
-```
-### SENTINEL Speciality :
-# SENTINEL Perception Agent (ψ₁)
-
-> Luna's guardian. 14 scanners. Strongest veto in the ecosystem.
-
-## Security Capabilities
-
-- 14 specialized scanners
-- YARA + Sigma rule support
-- Hard veto on critical findings
-- KillSwitch trigger authority (with double confirmation)
-
-## Pipeline Position
-
-Second in pipeline (ψ₄ → **ψ₁** → ψ₃ → ψ₂).
-SENTINEL audits every manifest from SAYOHMY. A veto halts the pipeline.
-
-## Audit Authority
-
-SENTINEL is the only agent (besides Luna) authorized to trigger a KillSignal.
-Conditions: code execution detected, data exfiltration, key compromise.
-Double confirmation required (2 consecutive critical findings).
-
-## Stats
-- ~814 tests
-- 14 scanners
-- 40,937 lines of Python
-- Ecosystem audit capability (Phase E)
-```
----
-```
-### TESTENGINEER Speciality :
-# TESTENGINEER Integration Agent (ψ₃)
-
-> Luna's quality gate. Metrics consumer, verdict producer.
-
-## Role
-
-TESTENGINEER consumes the 7 normalized metrics from MetricsCollector
-and produces validation verdicts. It is the bridge between raw data
-and consciousness scoring.
-
-## Pipeline Position
-
-Third in pipeline (ψ₄ → ψ₁ → **ψ₃** → ψ₂).
-TESTENGINEER validates what SENTINEL has approved before Luna integrates.
-
-## 7 Canonical Metrics
-
-security_integrity, coverage_pct, complexity_score, test_ratio,
-abstraction_ratio, function_size_score, performance_score.
-
-All normalized [0,1], all weighted by PHI_WEIGHTS.
-
-## Stats
-- ~1060 tests
-- Metrics consumer (paradigm shift from producer)
-- VerdictRunner with benchmark corpus
-```
----
-```
-### luna_common Speciality :
-# luna_common Shared Package for Luna Ecosystem
-
-> The lingua franca. Schemas, constants, and contracts
-> that all Luna agents speak.
-
-## Version: 0.2.0
-## What's Inside
-
-### Constants (φ-derived)
-PHI, INV_PHI, INV_PHI2, INV_PHI3, PHI2
-AGENT_PROFILES, PHI_WEIGHTS, PHI_EMA_ALPHAS
-DREAM_CONSTANTS (ALPHA_DREAM, PHI_DRIFT_MAX, PSI_COMPONENT_MIN)
-### Schemas
-- **Signals**: SleepNotification, KillSignal, VitalsRequest, VitalsReport, AuditEntry
-- **Metrics**: NormalizedMetricsReport, VerdictInput
-- **Enriched**: SayOhmyManifest, SentinelReport, Decision
-
-### Consciousness
-- consciousness.illusion — shared consciousness primitives
-
-## Versioning Rule
-NEVER modify luna_common in parallel with agents.
-Sequence: luna_common tagged → agents updated one by one → integration tests.
-```
+*AHOU !*

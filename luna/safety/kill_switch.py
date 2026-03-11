@@ -13,7 +13,7 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-SENTINEL_FILENAME = "kill_sentinel"
+SENTINEL_FILENAME = "emergency_stop"
 
 
 class KillSwitch:
@@ -83,15 +83,15 @@ class KillSwitch:
         return cancelled
 
     def write_sentinel(self, sentinel_dir: Path, reason: str) -> Path:
-        """Write a kill sentinel file for inter-process signaling."""
+        """Write an emergency stop file for inter-process signaling."""
         sentinel_dir.mkdir(parents=True, exist_ok=True)
         sentinel_path = sentinel_dir / SENTINEL_FILENAME
         sentinel_path.write_text(reason, encoding="utf-8")
-        log.info("Kill sentinel written: %s", sentinel_path)
+        log.info("Emergency stop written: %s", sentinel_path)
         return sentinel_path
 
     def check_sentinel(self, sentinel_dir: Path) -> str | None:
-        """Check for a kill sentinel file. Returns reason if found, None otherwise."""
+        """Check for an emergency stop file. Returns reason if found, None otherwise."""
         sentinel_path = sentinel_dir / SENTINEL_FILENAME
         if sentinel_path.exists():
             reason = sentinel_path.read_text(encoding="utf-8").strip()

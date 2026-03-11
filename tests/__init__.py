@@ -27,4 +27,4 @@ Usage:
     pytest tests/test_phi_calculator.py  # Single module
 """
 
-__version__ = "2.0.0"
+__version__ = "5.3.0"

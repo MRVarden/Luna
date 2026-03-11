@@ -1,6 +1,6 @@
 """Fingerprint module — HMAC-SHA256 identity fingerprinting.
 
-Generates deterministic, infalsifiable fingerprints from consciousness state.
+Generates deterministic, infalsifiable fingerprints from cognitive state.
 Maintains an append-only JSONL ledger for auditability.
 """
 

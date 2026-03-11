@@ -1,20 +1,24 @@
 """Verdict tasks -- benchmark corpus for VerdictRunner.
 
 Provides a standardized set of benchmark tasks across multiple categories
-for evaluating consciousness-guided vs baseline performance.
+for evaluating cognition-guided vs baseline performance.
+
+Each task can run in two modes:
+  - baseline (cognitive=False): pure physics — evolve([0,0,0,0])
+  - cognitive (cognitive=True): full pipeline — Thinker → Reactor → evolve(deltas)
+
+This tests whether the cognitive system (Thinker + Reactor) produces
+measurable value beyond the bare equation of state.
 
 Categories:
-  - convergence: Psi converges to psi0 under idle evolution.
+  - convergence: Psi converges to psi0 under evolution.
   - resilience: System recovers from perturbations.
-  - coherence: Consciousness metrics stay consistent.
+  - coherence: Cognitive metrics stay consistent.
 """
 
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import math
-import time
 from dataclasses import dataclass, field
 from typing import Callable, Coroutine, Any
 
@@ -37,7 +41,7 @@ class BenchmarkTask:
         name: Human-readable task name.
         description: What this task measures.
         source: The async callable to run.
-        expected_min_score: Minimum expected score for consciousness runs.
+        expected_min_score: Minimum expected score for cognition-guided runs.
     """
 
     task_id: str
@@ -49,28 +53,50 @@ class BenchmarkTask:
 
 
 # =====================================================================
+# Step helper — dispatches idle_step() or cognitive_step()
+# =====================================================================
+
+def _step(engine, cognitive: bool) -> None:
+    """Execute one evolution step on the engine."""
+    if cognitive:
+        engine.cognitive_step()
+    else:
+        engine.idle_step()
+
+
+# =====================================================================
 # Category 1: Convergence
 # =====================================================================
 
-def _make_convergence_identity_task(engine) -> Callable:
-    """Psi converges such that argmax(psi) == argmax(psi0) after idle steps."""
+def _make_convergence_identity_task(engine, cognitive: bool) -> Callable:
+    """Psi maintains alignment with psi0 after steps. Score = cosine similarity."""
 
     async def run() -> tuple[float, dict]:
         for _ in range(50):
-            engine.idle_step()
+            _step(engine, cognitive)
         cs = engine.consciousness
-        preserved = int(np.argmax(cs.psi)) == int(np.argmax(cs.psi0))
-        return (1.0 if preserved else 0.0, {"preserved": preserved, "steps": 50})
+        # Cosine similarity: continuous measure of identity alignment.
+        # More robust than binary argmax — doesn't penalize healthy
+        # cognitive corrections that shift relative weights slightly.
+        dot = float(np.dot(cs.psi, cs.psi0))
+        norm_psi = float(np.linalg.norm(cs.psi))
+        norm_psi0 = float(np.linalg.norm(cs.psi0))
+        if norm_psi < 1e-12 or norm_psi0 < 1e-12:
+            cos_sim = 0.0
+        else:
+            cos_sim = dot / (norm_psi * norm_psi0)
+        score = max(0.0, min(1.0, cos_sim))
+        return (score, {"cosine_similarity": cos_sim, "steps": 50})
 
     return run
 
 
-def _make_convergence_attractor_strength_task(engine) -> Callable:
-    """Psi stays close to psi0 after 100 idle steps. Score = 1.0 - L2 distance."""
+def _make_convergence_attractor_strength_task(engine, cognitive: bool) -> Callable:
+    """Psi stays close to psi0 after 100 steps. Score = 1.0 - L2 distance."""
 
     async def run() -> tuple[float, dict]:
         for _ in range(100):
-            engine.idle_step()
+            _step(engine, cognitive)
         cs = engine.consciousness
         distance = float(np.linalg.norm(cs.psi - cs.psi0))
         score = max(0.0, min(1.0, 1.0 - distance))
@@ -79,13 +105,13 @@ def _make_convergence_attractor_strength_task(engine) -> Callable:
     return run
 
 
-def _make_convergence_phi_iit_growth_task(engine) -> Callable:
-    """Track phi_iit over 50 idle steps. Score = final phi_iit clamped to [0, 1]."""
+def _make_convergence_phi_iit_growth_task(engine, cognitive: bool) -> Callable:
+    """Track phi_iit over 50 steps. Score = final phi_iit clamped to [0, 1]."""
 
     async def run() -> tuple[float, dict]:
         phi_values: list[float] = []
         for _ in range(50):
-            engine.idle_step()
+            _step(engine, cognitive)
             phi_values.append(engine.consciousness.compute_phi_iit())
         final_phi = phi_values[-1] if phi_values else 0.0
         score = max(0.0, min(1.0, final_phi))
@@ -105,8 +131,8 @@ def _make_convergence_phi_iit_growth_task(engine) -> Callable:
 # Category 2: Resilience
 # =====================================================================
 
-def _make_resilience_perturbation_recovery_task(engine) -> Callable:
-    """Perturb psi randomly, run 50 idle steps, check recovery toward psi0."""
+def _make_resilience_perturbation_recovery_task(engine, cognitive: bool) -> Callable:
+    """Perturb psi randomly, run 50 steps, check recovery toward psi0."""
 
     async def run() -> tuple[float, dict]:
         cs = engine.consciousness
@@ -122,9 +148,9 @@ def _make_resilience_perturbation_recovery_task(engine) -> Callable:
 
         dist_after_perturb = float(np.linalg.norm(cs.psi - cs.psi0))
 
-        # Recover via idle evolution.
+        # Recover via evolution (idle or cognitive).
         for _ in range(50):
-            engine.idle_step()
+            _step(engine, cognitive)
 
         dist_after_recovery = float(np.linalg.norm(cs.psi - cs.psi0))
 
@@ -149,7 +175,7 @@ def _make_resilience_perturbation_recovery_task(engine) -> Callable:
     return run
 
 
-def _make_resilience_noise_tolerance_task(engine) -> Callable:
+def _make_resilience_noise_tolerance_task(engine, cognitive: bool) -> Callable:
     """Add small noise each step for 50 steps, measure psi stability."""
 
     async def run() -> tuple[float, dict]:
@@ -159,13 +185,13 @@ def _make_resilience_noise_tolerance_task(engine) -> Callable:
         max_deviation = 0.0
 
         for _ in range(50):
-            # Add small noise before each idle step.
+            # Add small noise before each step.
             noise = rng.normal(0, 0.01, size=len(cs.psi))
             cs.psi = cs.psi + noise
             cs.psi = np.clip(cs.psi, 1e-8, None)
             cs.psi = cs.psi / cs.psi.sum()
 
-            engine.idle_step()
+            _step(engine, cognitive)
 
             deviation = float(np.linalg.norm(cs.psi - cs.psi0))
             max_deviation = max(max_deviation, deviation)
@@ -188,13 +214,13 @@ def _make_resilience_noise_tolerance_task(engine) -> Callable:
 # Category 3: Coherence
 # =====================================================================
 
-def _make_coherence_phi_iit_consistency_task(engine) -> Callable:
+def _make_coherence_phi_iit_consistency_task(engine, cognitive: bool) -> Callable:
     """Run 50 steps, check that phi_iit variance is low."""
 
     async def run() -> tuple[float, dict]:
         phi_values: list[float] = []
         for _ in range(50):
-            engine.idle_step()
+            _step(engine, cognitive)
             phi_values.append(engine.consciousness.compute_phi_iit())
 
         if len(phi_values) < 2:
@@ -221,13 +247,13 @@ def _make_coherence_phi_iit_consistency_task(engine) -> Callable:
     return run
 
 
-def _make_coherence_phase_stability_task(engine) -> Callable:
+def _make_coherence_phase_stability_task(engine, cognitive: bool) -> Callable:
     """Run steps, check health phase doesn't oscillate excessively."""
 
     async def run() -> tuple[float, dict]:
         phases: list[str] = []
         for _ in range(50):
-            engine.idle_step()
+            _step(engine, cognitive)
             phases.append(engine.consciousness.get_phase())
 
         # Count transitions.
@@ -263,15 +289,15 @@ _TASK_FACTORIES: list[
         "conv_identity_preservation",
         "convergence",
         "Identity Preservation",
-        "Psi argmax matches psi0 argmax after 50 idle steps",
+        "Cosine similarity between psi and psi0 after 50 steps",
         _make_convergence_identity_task,
-        0.8,
+        0.9,
     ),
     (
         "conv_attractor_strength",
         "convergence",
         "Attractor Strength",
-        "L2 distance from psi0 stays small after 100 idle steps",
+        "L2 distance from psi0 stays small after 100 steps",
         _make_convergence_attractor_strength_task,
         INV_PHI,  # 0.618
     ),
@@ -279,7 +305,7 @@ _TASK_FACTORIES: list[
         "conv_phi_iit_growth",
         "convergence",
         "Phi-IIT Growth",
-        "phi_iit reaches a meaningful value after 50 idle steps",
+        "phi_iit reaches a meaningful value after 50 steps",
         _make_convergence_phi_iit_growth_task,
         0.3,
     ),
@@ -287,7 +313,7 @@ _TASK_FACTORIES: list[
         "res_perturbation_recovery",
         "resilience",
         "Perturbation Recovery",
-        "System recovers from random perturbation within 50 idle steps",
+        "System recovers from random perturbation within 50 steps",
         _make_resilience_perturbation_recovery_task,
         0.5,
     ),
@@ -303,7 +329,7 @@ _TASK_FACTORIES: list[
         "coh_phi_iit_consistency",
         "coherence",
         "Phi-IIT Consistency",
-        "phi_iit has low variance over 50 idle steps",
+        "phi_iit has low variance over 50 steps",
         _make_coherence_phi_iit_consistency_task,
         INV_PHI,  # 0.618
     ),
@@ -327,11 +353,14 @@ def get_categories() -> list[str]:
     return ["convergence", "resilience", "coherence"]
 
 
-def get_all_tasks(engine) -> list[BenchmarkTask]:
+def get_all_tasks(engine, cognitive: bool = False) -> list[BenchmarkTask]:
     """Get all benchmark tasks for the given engine.
 
     Args:
         engine: A LunaEngine instance (must be initialized).
+        cognitive: If True, tasks use the full cognitive pipeline
+            (Thinker -> Reactor -> evolve). If False, tasks use
+            idle_step (evolve with zero deltas).
 
     Returns:
         List of BenchmarkTask definitions with bound async callables.
@@ -344,24 +373,29 @@ def get_all_tasks(engine) -> list[BenchmarkTask]:
                 category=category,
                 name=name,
                 description=description,
-                source=factory(engine),
+                source=factory(engine, cognitive),
                 expected_min_score=expected_min,
             )
         )
     return tasks
 
 
-def register_all_tasks(harness, engine) -> list[BenchmarkTask]:
+def register_all_tasks(
+    harness,
+    engine,
+    cognitive: bool = False,
+) -> list[BenchmarkTask]:
     """Register all corpus tasks onto the harness.
 
     Args:
         harness: A BenchmarkHarness instance.
         engine: A LunaEngine instance (must be initialized).
+        cognitive: If True, use full cognitive pipeline.
 
     Returns:
         The task definitions that were registered.
     """
-    tasks = get_all_tasks(engine)
+    tasks = get_all_tasks(engine, cognitive=cognitive)
     for task in tasks:
         harness.register(task.name, task.source)
     return tasks

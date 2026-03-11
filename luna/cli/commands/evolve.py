@@ -1,4 +1,4 @@
-"""Evolve command — run consciousness evolution steps."""
+"""Evolve command — run cognitive evolution steps."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def evolve(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
     config: str = typer.Option("luna.toml", help="Path to config file"),
 ) -> None:
-    """Run N consciousness evolution steps (idle steps)."""
+    """Run N cognitive evolution steps (idle steps)."""
     cfg = LunaConfig.load(config)
     engine = LunaEngine(cfg)
     engine.initialize()

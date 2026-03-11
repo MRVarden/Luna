@@ -1,15 +1,42 @@
 # ============================================
-# Luna v2.2.0 — Pure-local consciousness engine
+# Luna v5.3.0 — Computational Consciousness Engine
 # Python: >=3.11
-# Updated: 2026-02-21
+# Updated: 2026-03-11
 # ============================================
-
-# Core (deterministic math + schemas)
-numpy>=1.26.0
-pydantic>=2.6.0
 
 # luna_common is installed separately:
 #   pip install -e ~/luna_common
+
+# Core
+numpy>=1.26.0
+pydantic>=2.6.0
+
+# CLI
+typer>=0.9.0
+
+# API (FastAPI + server)
+fastapi>=0.100.0
+uvicorn>=0.24.0
+starlette>=0.27.0
+
+# HTTP client (LLM bridge)
+httpx>=0.26.0
+
+# LLM providers
+openai>=1.10.0
+anthropic>=0.18.0
+
+# Observability (optional — graceful degradation if absent)
+redis>=5.0.0
+
+# Compression (cycle store)
+zstandard>=0.22.0
+
+# Validation (statistical comparisons)
+scipy>=1.12.0
+
+# LLM bridge (.env loading)
+python-dotenv>=1.0.0
 
 # ============================================
 # Dev / Test

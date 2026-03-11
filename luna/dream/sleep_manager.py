@@ -1,6 +1,6 @@
 """Sleep manager — orchestrates the dream cycle lifecycle.
 
-Handles transition to sleep mode (heartbeat → deep rhythm),
+Handles transition to sleep mode (heartbeat -> deep rhythm),
 sequential execution of dream phases, API suspension signal,
 and crash-safe recovery.
 """
@@ -14,8 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 
-from luna.dream.dream_cycle import DreamCycle, DreamReport
-from luna.dream.harvest import DreamHarvest
+from luna.dream._legacy_cycle import DreamCycle, DreamReport
 
 log = logging.getLogger(__name__)
 
@@ -68,8 +67,7 @@ class SleepManager:
         self._sleeping_event = asyncio.Event()
         self._sleeping_event.set()  # Start awake (not blocked)
 
-        # v2.3 — wake-cycle data buffers for dream harvest.
-        self._pipeline_events: list[dict] = []
+        # Wake-cycle data buffers for dream context.
         self._luna_psi_snapshots: list[tuple[float, ...]] = []
         self._metrics_history: list[dict[str, float]] = []
         self._phi_iit_history: list[float] = []
@@ -94,61 +92,24 @@ class SleepManager:
         return self._sleeping_event
 
     # ------------------------------------------------------------------
-    # Wake-cycle data recording (v2.3)
+    # Wake-cycle data recording
     # ------------------------------------------------------------------
 
     def record_event(self, event: dict) -> None:
-        """Record a pipeline event for dream harvest."""
-        self._pipeline_events.append(event)
+        """Record a cycle event (kept for orchestrator compatibility)."""
+        pass
 
     def record_psi(self, psi_snapshot: tuple[float, ...]) -> None:
-        """Record a Luna Psi snapshot for dream harvest."""
+        """Record a Luna Psi snapshot."""
         self._luna_psi_snapshots.append(psi_snapshot)
 
     def record_metrics(self, metrics: dict[str, float]) -> None:
-        """Record normalized metrics for dream harvest."""
+        """Record normalized metrics."""
         self._metrics_history.append(metrics)
 
     def record_phi_iit(self, phi_iit: float) -> None:
-        """Record a Phi_IIT measurement for dream harvest."""
+        """Record a Phi_IIT measurement."""
         self._phi_iit_history.append(phi_iit)
-
-    def _build_harvest(self) -> DreamHarvest | None:
-        """Build a DreamHarvest from accumulated buffers.
-
-        Returns None if there is no meaningful data to harvest.
-        """
-        if not self._pipeline_events and not self._luna_psi_snapshots:
-            return None
-
-        # Collect current profiles from engine if available.
-        current_profiles: dict[str, tuple[float, ...]] = {}
-        if self._engine is not None and hasattr(self._engine, "consciousness"):
-            cs = self._engine.consciousness
-            if cs is not None:
-                from luna_common.constants import AGENT_PROFILES
-
-                current_profiles = dict(AGENT_PROFILES)
-                # Override Luna's profile with the live psi0.
-                current_profiles[cs.agent_name] = tuple(
-                    float(x) for x in cs.psi0
-                )
-
-        harvest = DreamHarvest(
-            pipeline_events=tuple(self._pipeline_events),
-            luna_psi_snapshots=tuple(self._luna_psi_snapshots),
-            metrics_history=tuple(self._metrics_history),
-            phi_iit_history=tuple(self._phi_iit_history),
-            current_profiles=current_profiles,
-        )
-
-        # Clear buffers after harvest.
-        self._pipeline_events.clear()
-        self._luna_psi_snapshots.clear()
-        self._metrics_history.clear()
-        self._phi_iit_history.clear()
-
-        return harvest
 
     # ------------------------------------------------------------------
     # Sleep lifecycle
@@ -176,11 +137,8 @@ class SleepManager:
             self._state = SleepState.SLEEPING
             log.info("SleepManager: sleeping — dream cycle starting")
 
-            # Build harvest from wake-cycle buffers (v2.3).
-            harvest = self._build_harvest() if self._engine is not None else None
-
             report = await asyncio.wait_for(
-                self._dream_cycle.run(harvest=harvest),
+                self._dream_cycle.run(),
                 timeout=self._max_dream_duration,
             )
 
@@ -228,6 +186,12 @@ class SleepManager:
             # Always wake up, even if dream failed
             self._state = SleepState.WAKING_UP
             self._sleeping_event.set()  # Unblock API requests
+
+            # Clear wake-cycle buffers after dream.
+            self._luna_psi_snapshots.clear()
+            self._metrics_history.clear()
+            self._phi_iit_history.clear()
+
             self._state = SleepState.AWAKE
             log.info("SleepManager: awake")
 

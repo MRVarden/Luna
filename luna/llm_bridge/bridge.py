@@ -1,6 +1,6 @@
 """LLM Bridge — Abstract interface for provider-agnostic LLM access.
 
-Luna injects her consciousness into the LLM, not the reverse.
+Luna injects her cognitive state into the LLM, not the reverse.
 The LLM is interchangeable — Luna remains Luna regardless of model.
 """
 
@@ -66,3 +66,6 @@ class LLMBridge(ABC):
         Raises:
             LLMBridgeError: On any provider-specific failure.
         """
+
+    async def close(self) -> None:
+        """Release provider resources. Default: no-op."""

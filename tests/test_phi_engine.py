@@ -224,21 +224,21 @@ class TestPhiScorer:
     def test_scorer_missing_metrics_renormalized(self):
         """When only some metrics are set, weights are renormalized.
 
-        If we set only security_integrity=1.0, the score should be 1.0
+        If we set only integration_coherence=1.0, the score should be 1.0
         (the only initialized metric gets 100% of the renormalized weight).
         """
         scorer = PhiScorer()
-        scorer.update("security_integrity", 1.0)
+        scorer.update("integration_coherence", 1.0)
         # Only 1 metric initialized, weight gets renormalized to 1.0
         assert scorer.score() == pytest.approx(1.0, abs=1e-10), (
             "Single metric at 1.0 should produce composite = 1.0 after renormalization"
         )
 
         # Now add a second metric with a lower value
-        scorer.update("coverage_pct", 0.5)
+        scorer.update("identity_anchoring", 0.5)
         composite = scorer.score()
-        # Expected: (0.396*1.0 + 0.244*0.5) / (0.396 + 0.244)
-        expected = (0.396 * 1.0 + 0.244 * 0.5) / (0.396 + 0.244)
+        # Expected: (0.394*1.0 + 0.242*0.5) / (0.394 + 0.242)
+        expected = (0.394 * 1.0 + 0.242 * 0.5) / (0.394 + 0.242)
         assert composite == pytest.approx(expected, abs=0.01), (
             f"Two-metric composite should be ~{expected:.4f}, got {composite:.4f}"
         )

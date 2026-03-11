@@ -31,7 +31,6 @@ from luna.core.config import (
     MemorySection,
     ObservabilitySection,
     OrchestratorSection,
-    PipelineSection,
 )
 from luna.llm_bridge.bridge import LLMBridgeError, LLMResponse
 
@@ -57,14 +56,12 @@ def _make_config(tmp_path: Path, **chat_overrides) -> LunaConfig:
             version="test",
             agent_name="LUNA",
             data_dir=str(tmp_path),
-            pipeline_dir=str(tmp_path / "pipeline"),
         ),
         consciousness=ConsciousnessSection(
             checkpoint_file="cs.json",
             backup_on_save=False,
         ),
         memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
-        pipeline=PipelineSection(root=str(tmp_path / "pipeline")),
         observability=ObservabilitySection(),
         heartbeat=HeartbeatSection(interval_seconds=0.01),
         orchestrator=OrchestratorSection(retry_max=1, retry_base_delay=0.01),
@@ -83,6 +80,23 @@ def _mock_llm() -> AsyncMock:
         output_tokens=10,
     ))
     return llm
+
+
+def _warm_up_state(session: ChatSession) -> None:
+    """Pre-evolve consciousness so it's not in BROKEN phase with phi=0.
+
+    v3.0: The Decider triggers ALERT when phase=BROKEN and phi<0.1.
+    Fresh engines always start there, so tests that need the normal
+    LLM path must warm up the state first.
+    """
+    import numpy as np
+    cs = session.engine.consciousness
+    if cs is None:
+        return
+    rng = np.random.default_rng(42)
+    for _ in range(55):
+        deltas = rng.uniform(0.05, 0.15, size=4).tolist()
+        cs.evolve(info_deltas=deltas)
 
 
 @pytest.fixture
@@ -163,16 +177,12 @@ class TestChatSectionConfig:
 version = "test"
 agent_name = "LUNA"
 data_dir = "data"
-pipeline_dir = "pipeline"
 
 [consciousness]
 checkpoint_file = "cs.json"
 
 [memory]
 fractal_root = "fractal"
-
-[pipeline]
-root = "pipeline"
 
 [chat]
 max_history = 50
@@ -204,7 +214,7 @@ class TestSessionLifecycle:
         """Test 5: Start initializes engine and sets _started."""
         session = ChatSession(cfg)
         # Patch create_provider to return a mock LLM.
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         assert session.engine.consciousness is not None
         assert session.has_llm is True
@@ -214,7 +224,7 @@ class TestSessionLifecycle:
     async def test_session_start_no_llm(self, cfg: LunaConfig):
         """Test 6: Start with failing LLM degrades gracefully."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", side_effect=RuntimeError("no SDK")):
+        with patch("luna.llm_bridge.providers.create_provider", side_effect=RuntimeError("no SDK")):
             await session.start()
         assert session.has_llm is False
         assert session.engine.consciousness is not None
@@ -223,7 +233,7 @@ class TestSessionLifecycle:
     async def test_session_stop_saves_checkpoint(self, cfg: LunaConfig):
         """Test 7: Stop saves a consciousness checkpoint."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         ckpt_path = cfg.resolve(cfg.consciousness.checkpoint_file)
@@ -247,47 +257,64 @@ class TestSend:
     async def test_send_with_mock_llm(self, cfg: LunaConfig):
         """Test 8: Send returns LLM content and tokens."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
+        _warm_up_state(session)  # v3.0: avoid ALERT on fresh state
         resp = await session.send("Bonjour Luna")
         assert resp.content == "Bonjour, je suis Luna."
         assert resp.input_tokens == 42
         assert resp.output_tokens == 10
         assert resp.phase != ""
-        assert resp.phi_iit >= 0.0  # Fresh engine starts at 0.0
+        assert resp.phi_iit >= 0.0
 
     @pytest.mark.asyncio
     async def test_send_without_llm_status_only(self, cfg: LunaConfig):
-        """Test 9: Send without LLM returns a status-only response."""
+        """Test 9: Send without LLM returns a status-only response.
+
+        v5.0: Fresh engine has step_count < 5, so ALERT is NOT triggered
+        (cold start grace period). Without LLM, returns status fallback.
+        """
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", side_effect=RuntimeError("no SDK")):
+        with patch("luna.llm_bridge.providers.create_provider", side_effect=RuntimeError("no SDK")):
             await session.start()
+        # Fresh state → RESPOND (v5.0: no ALERT on cold start).
         resp = await session.send("Hello")
         assert "[Mode sans LLM]" in resp.content
         assert "Phase:" in resp.content
-        assert resp.input_tokens == 0
+
+        # Warmed up → still LLM-less status path.
+        _warm_up_state(session)
+        resp2 = await session.send("Hello again")
+        assert "[Mode sans LLM]" in resp2.content
+        assert "Phase:" in resp2.content
 
     @pytest.mark.asyncio
     async def test_send_evolves_consciousness(self, cfg: LunaConfig):
-        """Test 10: Send runs idle_step (breath) then chat_evolve (real deltas)."""
+        """Test 10: Send runs idle_step + input_evolve + output_evolve.
+
+        v3.0 double evolve: input (before decide) + output (after LLM).
+        Total: idle_step +1, input_evolve +1, chat_evolve +1 = +3 steps.
+        """
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
+        _warm_up_state(session)  # v3.0: avoid ALERT path
 
         step_before = session.engine.consciousness.step_count
         idle_before = session.engine._idle_steps
         await session.send("test evolution")
         # idle_step increments _idle_steps (the heartbeat breath).
         assert session.engine._idle_steps == idle_before + 1
-        # chat_evolve adds a second evolve step (+2 total).
-        assert session.engine.consciousness.step_count == step_before + 2
+        # v3.0: idle_step + input_evolve + chat_evolve = +3 steps.
+        assert session.engine.consciousness.step_count == step_before + 3
 
     @pytest.mark.asyncio
     async def test_send_records_history(self, cfg: LunaConfig):
         """Test 11: Send records user + assistant messages in history."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
+        _warm_up_state(session)  # v3.0: avoid ALERT path
         await session.send("Question 1")
         assert len(session.history) == 2  # user + assistant
         assert session.history[0].role == "user"
@@ -298,7 +325,7 @@ class TestSend:
         """Test 12: History is trimmed to max_history."""
         cfg = _make_config(tmp_path, max_history=4)
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         # Send 3 messages → 6 history entries → trimmed to 4.
@@ -320,17 +347,19 @@ class TestCommands:
     async def test_command_status(self, cfg: LunaConfig):
         """Test 13: /status returns engine status."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         result = await session.handle_command("/status")
-        assert "Etat Luna" in result
-        assert "phase" in result
+        assert "## Luna v" in result
+        assert "Conscience" in result
+        assert "Metriques" in result
+        assert "Phase:" in result
 
     @pytest.mark.asyncio
     async def test_command_help(self, cfg: LunaConfig):
         """Test 14: /help returns the help text."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         result = await session.handle_command("/help")
         assert "/status" in result
@@ -341,7 +370,7 @@ class TestCommands:
     async def test_command_dream(self, cfg: LunaConfig):
         """Test 15: /dream triggers a dream cycle."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         # Build enough history for the dream cycle.
@@ -355,7 +384,7 @@ class TestCommands:
     async def test_command_unknown(self, cfg: LunaConfig):
         """Test 16: Unknown command returns a helpful message."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         result = await session.handle_command("/foobar")
         assert "Commande inconnue" in result
@@ -374,7 +403,7 @@ class TestMemoryIntegration:
     async def test_send_searches_memory(self, cfg: LunaConfig):
         """Test 17: When memory is available, send() calls search()."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         # Replace memory with a mock.
@@ -402,15 +431,14 @@ class TestExtractKeywords:
 
     def test_extract_keywords(self):
         """Test 18: Extracts meaningful keywords, skips stopwords."""
-        text = "la conscience fractale de Luna evolue dans le systeme"
+        text = "la securite fractale du deploiement evolue dans le serveur"
         kw = _extract_keywords(text)
-        assert "conscience" in kw
+        assert "securite" in kw
         assert "fractale" in kw
-        assert "luna" in kw
-        assert "evolue" in kw
+        assert "deploiement" in kw
         # Stopwords removed.
         assert "la" not in kw
-        assert "de" not in kw
+        assert "du" not in kw
         assert "dans" not in kw
         assert "le" not in kw
 
@@ -422,68 +450,10 @@ class TestExtractKeywords:
 
     def test_extract_keywords_dedup(self):
         """Duplicate tokens are not repeated."""
-        text = "Luna Luna Luna consciousness consciousness"
+        text = "securite securite securite deploiement deploiement"
         kw = _extract_keywords(text)
-        assert kw.count("luna") == 1
-        assert kw.count("consciousness") == 1
-
-
-# =====================================================================
-#  VIII. PIPELINE INTEGRATION (v2.4.0)
-# =====================================================================
-
-
-class TestPipelineIntegration:
-    """Tests 19-21: Chat + Pipeline self-evolution loop integration."""
-
-    @pytest.mark.asyncio
-    async def test_pipeline_disabled_by_default(self, cfg: LunaConfig) -> None:
-        """Test 19: runner_enabled=false -> _pipeline_runner is None."""
-        session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
-            await session.start()
-        assert session._pipeline_runner is None, (
-            "Pipeline runner should be None when runner_enabled=false"
-        )
-
-    @pytest.mark.asyncio
-    async def test_send_without_runner_unchanged(self, cfg: LunaConfig) -> None:
-        """Test 20: send() works normally when pipeline runner is disabled.
-
-        Even when the message contains a detectable task intent,
-        the pipeline does NOT run because _pipeline_runner is None.
-        """
-        session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
-            await session.start()
-
-        # This message has a strong signal ('ameliore') + weak ('performance')
-        # but pipeline_runner is None, so it goes through normal LLM path.
-        resp = await session.send("ameliore la performance du code")
-        assert resp.content == "Bonjour, je suis Luna."
-        assert resp.input_tokens == 42
-
-    @pytest.mark.asyncio
-    async def test_needs_command_returns_needs(self, cfg: LunaConfig) -> None:
-        """Test 21: /needs command formats bootstrap needs via NeedIdentifier.
-
-        After start(), all 7 metrics are BOOTSTRAP, so /needs should
-        return a list of 7 MEASURE needs.
-        """
-        session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
-            await session.start()
-
-        result = await session.handle_command("/needs")
-        assert "Besoins identifies" in result, (
-            "Expected /needs to return identified needs header"
-        )
-        assert "MEASURE" in result.upper(), (
-            "Expected MEASURE tasks for bootstrap metrics"
-        )
-        assert "bootstrap" in result.lower(), (
-            "Expected bootstrap warning in /needs output"
-        )
+        assert kw.count("securite") == 1
+        assert kw.count("deploiement") == 1
 
 
 # =====================================================================
@@ -498,7 +468,7 @@ class TestInactivityWatcher:
     async def test_inactivity_task_created_on_start(self, cfg: LunaConfig):
         """start() creates the _inactivity_task when dream is enabled."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         assert session._inactivity_task is not None, (
             "Inactivity watcher task should be created on start()"
@@ -510,7 +480,7 @@ class TestInactivityWatcher:
     async def test_inactivity_task_cancelled_on_stop(self, cfg: LunaConfig):
         """stop() cancels the _inactivity_task cleanly."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         task = session._inactivity_task
         assert task is not None
@@ -522,7 +492,7 @@ class TestInactivityWatcher:
     async def test_send_resets_last_activity(self, cfg: LunaConfig):
         """send() updates _last_activity to the current time."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         old_activity = session._last_activity
         # Small sleep to ensure time.monotonic() changes.
@@ -542,7 +512,7 @@ class TestInactivityWatcher:
         # Override dream section to disabled.
         object.__setattr__(cfg, "dream", DreamSection(enabled=False))
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         assert session._inactivity_task is None, (
             "No inactivity task when dream is disabled"
@@ -562,7 +532,7 @@ class TestDreamCommandGuard:
     async def test_dream_refused_no_data(self, cfg: LunaConfig):
         """Test: /dream before any send() with no history -> refused."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         # No send() -> empty buffers AND empty history (<10).
         result = await session.handle_command("/dream")
@@ -575,7 +545,7 @@ class TestDreamCommandGuard:
     async def test_dream_allowed_with_history(self, cfg: LunaConfig):
         """Test: /dream after enough idle_steps (history >= 10) -> legacy runs."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         # Build consciousness history via idle steps (no send needed).
         for _ in range(20):
@@ -590,12 +560,12 @@ class TestDreamCommandGuard:
     async def test_dream_allowed_with_buffers(self, cfg: LunaConfig):
         """Test: /dream after send() messages -> simulation runs."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
         # Send enough messages to fill buffers.
         for i in range(5):
             await session.send(f"Message {i}")
-        assert len(session._psi_snapshots) > 0 or len(session._pipeline_events) > 0
+        assert len(session._psi_snapshots) > 0
         result = await session.handle_command("/dream")
         assert "Cycle de reve" in result, (
             "Expected dream to run after chat messages"
@@ -608,6 +578,41 @@ class TestDreamCommandGuard:
 # =====================================================================
 
 
+class TestEmergencyStop:
+    """Emergency stop detection in chat mode."""
+
+    @pytest.mark.asyncio
+    async def test_send_detects_emergency_stop(self, cfg: LunaConfig):
+        """send() returns stop message when emergency_stop file exists."""
+        session = ChatSession(cfg)
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
+            await session.start()
+
+        # Write emergency stop file.
+        data_dir = cfg.resolve(cfg.luna.data_dir)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        sentinel = data_dir / "emergency_stop"
+        sentinel.write_text("test stop reason")
+
+        resp = await session.send("hello")
+        assert "urgence" in resp.content.lower() or "Arret" in resp.content
+        assert "test stop reason" in resp.content
+        assert not sentinel.exists()  # consumed
+        await session.stop()
+
+    @pytest.mark.asyncio
+    async def test_send_no_stop_normal_flow(self, cfg: LunaConfig):
+        """send() proceeds normally when no emergency_stop file exists."""
+        session = ChatSession(cfg)
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
+            await session.start()
+        _warm_up_state(session)
+
+        resp = await session.send("hello")
+        assert "urgence" not in resp.content.lower()
+        await session.stop()
+
+
 class TestVividInfoDeltas:
     """Test that info_deltas vary with message length and token count."""
 
@@ -615,7 +620,7 @@ class TestVividInfoDeltas:
     async def test_different_messages_produce_different_psi(self, cfg: LunaConfig):
         """Varying message lengths produce different Psi trajectories."""
         session = ChatSession(cfg)
-        with patch("luna.chat.session.create_provider", return_value=_mock_llm()):
+        with patch("luna.llm_bridge.providers.create_provider", return_value=_mock_llm()):
             await session.start()
 
         # Short message.

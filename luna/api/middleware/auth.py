@@ -49,7 +49,7 @@ class TokenAuthMiddleware(BaseHTTPMiddleware):
         self._token_loaded: bool = False
 
         if not self._auth_enabled:
-            log.info("API authentication disabled by configuration")
+            log.debug("API authentication disabled by configuration")
             return
 
         token_path = root_dir / api_config.auth_token_file

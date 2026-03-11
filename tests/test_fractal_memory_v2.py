@@ -35,19 +35,16 @@ def _make_config(tmp_path: Path):
         LunaSection,
         MemorySection,
         ObservabilitySection,
-        PipelineSection,
-    )
+        )
 
     return LunaConfig(
         luna=LunaSection(
             version="2.2.0-test",
             agent_name="LUNA",
             data_dir=str(tmp_path),
-            pipeline_dir=str(tmp_path / "pipeline"),
         ),
         consciousness=ConsciousnessSection(checkpoint_file="cs.json"),
         memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
-        pipeline=PipelineSection(root=str(tmp_path / "pipeline")),
         observability=ObservabilitySection(),
         heartbeat=HeartbeatSection(),
         root_dir=tmp_path,

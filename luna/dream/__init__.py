@@ -1,51 +1,63 @@
-"""Dream Cycle — nocturnal consolidation of consciousness history.
+"""Dream Cycle — nocturnal consolidation of cognitive history.
 
-Four algorithmic phases:
-  1. Consolidation: statistics on recent Psi history
-  2. Reinterpretation: cross-component correlations
-  3. Defragmentation: remove near-duplicate states, cap buffer
-  4. Creative connections: non-adjacent pipeline couplings
+4 dream modes (v3.5):
+  1. Learning: extract skills from interaction history
+  2. Reflection: deep thought (100 iterations, CREATIVE)
+  3. Simulation: auto-generated scenarios on state copies
+  4. CEM optimization: counterfactual param tuning
 
-Plus sleep/wake lifecycle management and dream simulation (v2.3.0):
-  - harvest: frozen data containers for the 4-phase dream simulation
-  - consolidation: Ψ₀ profile update with φ-derived safeguards
+Plus statistical consolidation (legacy 4-phase) and sleep/wake lifecycle.
 """
 
 from luna.dream.awakening import Awakening, AwakeningReport
-from luna.dream.consolidation import consolidate_profiles, load_profiles, save_profiles
-from luna.dream.dream_cycle import DreamCycle, DreamPhase, DreamReport, PhaseResult
-from luna.dream.harvest import (
-    ConsolidationReport,
-    DreamHarvest,
-    ExplorationReport,
-    ReplayReport,
-    ScenarioResult,
+from luna.dream.consolidation import load_profiles, save_profiles
+from luna.dream.dream_cycle import (
+    DreamCycle,
+    DreamResult,
+    # Legacy re-exports (v1 fallback, used by SleepManager/Awakening)
+    LegacyDreamCycle,
+    DreamPhase,
+    DreamReport,
+    PhaseResult,
 )
-from luna.dream.scenarios import DEFAULT_SCENARIOS, DreamScenario, explore_all, run_scenario
-from luna.dream.simulator import DreamSimulator
+from luna.dream.harvest import DreamHarvest
 from luna.dream.sleep_manager import SleepManager, SleepState, SleepStatus
+from luna.dream.learning import DreamLearning, Interaction, Skill
+from luna.dream.reflection import DreamReflection
+from luna.dream.priors import (
+    DreamPriors,
+    ReflectionPrior,
+    SimulationPrior,
+    SkillPrior,
+    populate_dream_priors,
+)
+from luna.dream.simulation import DreamSimulation, Scenario, SimulationResult
 
 __all__ = [
     "Awakening",
     "AwakeningReport",
-    "ConsolidationReport",
-    "DEFAULT_SCENARIOS",
     "DreamCycle",
     "DreamHarvest",
+    "DreamLearning",
     "DreamPhase",
+    "DreamPriors",
+    "DreamReflection",
     "DreamReport",
-    "DreamScenario",
-    "DreamSimulator",
-    "ExplorationReport",
+    "DreamResult",
+    "DreamSimulation",
+    "Interaction",
+    "LegacyDreamCycle",
     "PhaseResult",
-    "ReplayReport",
-    "ScenarioResult",
+    "ReflectionPrior",
+    "Scenario",
+    "SimulationPrior",
+    "Skill",
+    "SkillPrior",
+    "SimulationResult",
     "SleepManager",
     "SleepState",
     "SleepStatus",
-    "consolidate_profiles",
-    "explore_all",
     "load_profiles",
-    "run_scenario",
+    "populate_dream_priors",
     "save_profiles",
 ]

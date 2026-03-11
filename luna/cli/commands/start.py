@@ -16,27 +16,42 @@ def start(
     api: bool = typer.Option(False, help="Start the API server"),
     daemon: bool = typer.Option(False, help="Run in background"),
 ) -> None:
-    """Start the Luna consciousness engine."""
+    """Start the Luna cognitive engine."""
     logging.basicConfig(level=logging.INFO)
     cfg = LunaConfig.load(config)
 
-    from luna.orchestrator import LunaOrchestrator
-    orch = LunaOrchestrator(cfg)
+    from luna.orchestrator.cognitive_loop import CognitiveLoop
 
     if api:
         import uvicorn
         from luna.api.app import create_app
 
         async def run_with_api() -> None:
-            await orch.start()
-            app = create_app(orch)
+            loop = CognitiveLoop(cfg)
+            await loop.start()
+            app = create_app(loop)
             server_config = uvicorn.Config(
                 app, host=cfg.api.host, port=cfg.api.port, log_level="info",
             )
             server = uvicorn.Server(server_config)
-            await server.serve()
+            try:
+                await server.serve()
+            finally:
+                await loop.stop()
 
         asyncio.run(run_with_api())
     else:
-        max_cycles = cfg.orchestrator.max_cycles or None
-        asyncio.run(orch.run(max_cycles=max_cycles))
+        # Non-API mode: start loop and keep running.
+        async def run_loop() -> None:
+            loop = CognitiveLoop(cfg)
+            await loop.start()
+            try:
+                # Keep alive until interrupted.
+                while loop.is_running:
+                    await asyncio.sleep(1)
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                pass
+            finally:
+                await loop.stop()
+
+        asyncio.run(run_loop())

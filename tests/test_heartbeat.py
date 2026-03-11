@@ -19,7 +19,6 @@ from luna.consciousness.state import ConsciousnessState
 from luna.core.config import HeartbeatSection, LunaConfig
 from luna.core.luna import LunaEngine
 from luna.heartbeat.heartbeat import Heartbeat, HeartbeatStatus
-from luna_common.consciousness import get_psi0
 
 
 # ---------------------------------------------------------------------------
@@ -34,21 +33,18 @@ def _make_config(tmp_path: Path) -> LunaConfig:
         LunaSection,
         MemorySection,
         ObservabilitySection,
-        PipelineSection,
-    )
+        )
 
     return LunaConfig(
         luna=LunaSection(
             version="2.2.0-test",
             agent_name="LUNA",
             data_dir=str(tmp_path),
-            pipeline_dir=str(tmp_path / "pipeline"),
         ),
         consciousness=ConsciousnessSection(
             checkpoint_file="cs.json", backup_on_save=False,
         ),
         memory=MemorySection(fractal_root=str(tmp_path / "fractal")),
-        pipeline=PipelineSection(root=str(tmp_path / "pipeline")),
         observability=ObservabilitySection(),
         heartbeat=HeartbeatSection(
             interval_seconds=0.01,  # Fast for tests.
@@ -88,29 +84,11 @@ def test_idle_step_evolves_psi(tmp_path: Path):
     assert not np.array_equal(psi_before, engine.consciousness.psi)
 
 
-def test_idle_step_uses_identity_profiles_when_no_cache(tmp_path: Path):
+def test_idle_step_single_agent(tmp_path: Path):
+    """v5.1: idle_step uses internal spatial gradient, no external agents."""
     engine = _make_engine(tmp_path)
-    assert engine._cached_psi_others is None
     engine.idle_step()
-    # Should not crash — uses default identity profiles.
     assert engine._idle_steps == 1
-
-
-def test_idle_step_uses_cached_psi_others(tmp_path: Path):
-    engine = _make_engine(tmp_path)
-
-    # Manually set cached psi_others.
-    fake_others = [
-        np.array([0.25, 0.25, 0.25, 0.25]),
-        np.array([0.25, 0.25, 0.25, 0.25]),
-        np.array([0.25, 0.25, 0.25, 0.25]),
-    ]
-    engine._cached_psi_others = fake_others
-
-    psi_before = engine.consciousness.psi.copy()
-    engine.idle_step()
-    # Should use the cached others — psi evolves differently.
-    assert not np.array_equal(psi_before, engine.consciousness.psi)
 
 
 def test_idle_step_increments_counter(tmp_path: Path):
@@ -258,16 +236,12 @@ def test_heartbeat_section_checkpoint_interval_from_toml(tmp_path: Path):
 version = "test"
 agent_name = "LUNA"
 data_dir = "data"
-pipeline_dir = "pipeline"
 
 [consciousness]
 checkpoint_file = "cs.json"
 
 [memory]
 fractal_root = "fractal"
-
-[pipeline]
-root = "pipeline"
 
 [heartbeat]
 interval_seconds = 15

@@ -74,6 +74,22 @@ class MessageBus:
         self._total_published += 1
         return delivered
 
+    def publish_nowait(self, message: Message) -> int:
+        """Synchronous publish -- for non-async code paths.
+
+        Same as publish() but uses put_nowait() instead of await.
+        """
+        topic_queues = self._subscribers.get(message.topic, [])
+        delivered = 0
+        for queue in topic_queues:
+            try:
+                queue.put_nowait(message)
+                delivered += 1
+            except asyncio.QueueFull:
+                log.warning("Message bus queue full for topic: %s (sync)", message.topic)
+        self._total_published += 1
+        return delivered
+
     def unsubscribe(self, topic: str, queue: asyncio.Queue) -> bool:
         """Remove a subscriber from a topic.
 

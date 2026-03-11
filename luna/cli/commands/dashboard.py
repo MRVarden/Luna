@@ -31,10 +31,31 @@ def dashboard(
             # Clear and redisplay
             typer.echo(f"\r--- Step {status_data['step_count']} ---")
             typer.echo(f"Phase: {status_data.get('phase', '?')}")
-            typer.echo(f"Health: {status_data.get('health_phase', '?')}")
             typer.echo(f"Quality: {status_data.get('quality_score', 0):.4f}")
             typer.echo(f"PHI IIT: {status_data.get('phi_iit', 0):.4f}")
             typer.echo(f"Identity: {'OK' if status_data.get('identity_preserved') else 'DRIFTED'}")
+
+            # Emotions from AffectEngine (if available via engine).
+            affect_engine = getattr(engine, "_affect_engine", None)
+            if affect_engine is not None:
+                aff = affect_engine.affect
+                typer.echo(
+                    f"Affect:  V={aff.valence:+.2f}  A={aff.arousal:.2f}  "
+                    f"D={aff.dominance:.2f}"
+                )
+                try:
+                    from luna.consciousness.emotion_repertoire import interpret
+                    ec = getattr(affect_engine, "event_count", -1)
+                    raw = interpret(
+                        aff.as_tuple(), affect_engine.mood.as_tuple(),
+                        affect_engine._repertoire, event_count=ec,
+                    )
+                    if raw:
+                        emo = ", ".join(f"{ew.fr}" for ew, _ in raw[:3])
+                        typer.echo(f"Ressenti: {emo}")
+                except Exception:
+                    pass
+
             typer.echo("")
             time.sleep(refresh)
     except KeyboardInterrupt:

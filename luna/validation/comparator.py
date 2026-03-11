@@ -1,7 +1,7 @@
 """Comparator — statistical comparison of benchmark results.
 
 Uses Wilcoxon signed-rank test (p < 0.05) to determine if
-consciousness-guided results are significantly better.
+cognition-guided results are significantly better.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ class ComparisonResult:
 
 
 class Comparator:
-    """Statistically compares baseline vs consciousness-guided results."""
+    """Statistically compares baseline vs cognition-guided results."""
 
     def __init__(self, significance_level: float = 0.05) -> None:
         self._significance_level = significance_level
@@ -50,8 +50,8 @@ class Comparator:
         """Compare two sets of scores using Wilcoxon signed-rank test.
 
         Args:
-            baseline_scores: Scores without consciousness.
-            consciousness_scores: Scores with consciousness.
+            baseline_scores: Scores without cognitive system.
+            consciousness_scores: Scores with cognitive system.
 
         Returns:
             ComparisonResult with statistical analysis.

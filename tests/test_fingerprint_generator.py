@@ -19,8 +19,8 @@ def _make_consciousness(
     """Create a mock ConsciousnessState."""
     cs = MagicMock()
     cs.agent_name = agent_name
-    cs.psi = np.array(psi or [0.25, 0.35, 0.25, 0.15])
-    cs.psi0 = np.array(psi0 or [0.25, 0.35, 0.25, 0.15])
+    cs.psi = np.array(psi or [0.260, 0.322, 0.250, 0.168])
+    cs.psi0 = np.array(psi0 or [0.260, 0.322, 0.250, 0.168])
     cs.step_count = step_count
     return cs
 
@@ -103,7 +103,7 @@ class TestFingerprintGenerator:
 
     def test_different_psi_different_fingerprint(self, generator):
         """Different psi produces different fingerprints."""
-        cs1 = _make_consciousness(psi=[0.25, 0.35, 0.25, 0.15])
+        cs1 = _make_consciousness(psi=[0.260, 0.322, 0.250, 0.168])
         cs2 = _make_consciousness(psi=[0.50, 0.20, 0.20, 0.10])
         fp1 = generator.generate(cs1)
         fp2 = generator.generate(cs2)

@@ -1,4 +1,8 @@
-"""Heartbeat — background async pulse that keeps consciousness alive.
+"""Heartbeat — background async pulse that keeps the cognitive loop alive.
+
+ORCHESTRATOR-ONLY: This async loop runs in the standalone orchestrator
+mode (luna start). In chat mode (session.py), idle_step, checkpoint,
+dream trigger, and emergency stop are handled directly by ChatSession.send().
 
 Runs idle_step() at regular intervals, performs identity fingerprint checks,
 saves periodic checkpoints, and triggers dream cycles when inactive.
@@ -132,16 +136,16 @@ class Heartbeat:
                     continue
                 self._last_beat = datetime.now(timezone.utc)
 
-                # 1b. Check kill sentinel (inter-process signal from CLI).
+                # 1b. Check emergency stop (inter-process signal from CLI).
                 if self._kill_switch is not None:
                     data_dir = self._config.resolve(self._config.luna.data_dir)
                     sentinel_reason = self._kill_switch.check_sentinel(data_dir)
                     if sentinel_reason is not None:
-                        log.critical("Kill sentinel detected: %s", sentinel_reason)
-                        self._kill_switch.kill(reason=f"sentinel: {sentinel_reason}")
+                        log.critical("Emergency stop detected: %s", sentinel_reason)
+                        self._kill_switch.kill(reason=f"emergency_stop: {sentinel_reason}")
                         if self._audit is not None:
                             await self._audit.record(AuditEvent.create(
-                                "kill_sentinel",
+                                "emergency_stop",
                                 data={"reason": sentinel_reason},
                             ))
                         break
@@ -223,8 +227,8 @@ class Heartbeat:
                         ))
 
                 # 7. Adaptive interval.
-                health_phase = getattr(self._engine, "health_phase_machine", None)
-                phase = health_phase.phase if health_phase else "SOLID"
+                cs = getattr(self._engine, "consciousness", None)
+                phase = cs.get_phase() if cs is not None else "SOLID"
                 interval = self._rhythm.current_interval(phase)
 
                 await asyncio.sleep(interval)
@@ -243,7 +247,7 @@ class Heartbeat:
         return int(np.argmax(cs.psi)) == int(np.argmax(cs.psi0))
 
     def _save_checkpoint(self) -> None:
-        """Save a consciousness checkpoint."""
+        """Save a cognitive checkpoint."""
         cs = self._engine.consciousness
         if cs is None:
             return

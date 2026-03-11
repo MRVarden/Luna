@@ -6,9 +6,12 @@ come from luna_common.constants and are NOT overridden here.
 
 from __future__ import annotations
 
+import logging
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +19,6 @@ class LunaSection:
     version: str
     agent_name: str
     data_dir: str
-    pipeline_dir: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,20 +34,6 @@ class MemorySection:
         default_factory=lambda: ["seeds", "roots", "branches", "leaves"],
     )
     max_memories_per_level: int = 500
-
-
-@dataclass(frozen=True, slots=True)
-class PipelineSection:
-    root: str
-    poll_interval_seconds: float = 1.0
-    timeout_seconds: float = 300.0
-    # v2.4.0 — Self-Evolution Loop
-    autonomy: str = "supervised"       # supervised | semi_autonomous | autonomous
-    sayohmy_path: str = "~/SAYOHMY"
-    sentinel_path: str = "~/SENTINEL"
-    testengineer_path: str = "~/TESTENGINEER"
-    agent_timeout: float = 120.0
-    runner_enabled: bool = False        # Must be explicitly enabled
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,12 +81,28 @@ class DreamSection:
 class OrchestratorSection:
     """Configuration for the autonomous orchestration loop."""
 
+    autonomy: str = "supervised"       # supervised | semi_autonomous | autonomous
     llm_augment: bool = True           # Enrich decisions via LLM
     max_cycles: int = 0                # 0 = infinite
     checkpoint_interval: int = 1       # Save every N cycles
     cycle_timeout: float = 600.0       # Timeout per cycle (seconds)
     retry_max: int = 3                 # LLM retries
     retry_base_delay: float = 1.0      # Initial retry delay (seconds)
+
+
+@dataclass(frozen=True, slots=True)
+class CognitiveLoopSection:
+    """Configuration for the persistent cognitive loop (daemon).
+
+    Intervals are φ-derived where possible:
+    - tick_interval: 30 × INV_PHI ≈ 18.54s
+    - max_tick_interval: 60s cap when idle
+    """
+
+    tick_interval: float = 18.54       # Base tick interval (30 × INV_PHI)
+    max_tick_interval: float = 60.0    # Cap when no session attached
+    autosave_ticks: int = 10           # ~3 min between saves (10 × 18.54s)
+    idle_dream_threshold: float = 7200.0  # 2h → autonomous dream
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +155,19 @@ class SafetySection:
 
 
 @dataclass(frozen=True, slots=True)
+class IdentitySection:
+    """Configuration for the identity anchoring system (PlanManifest)."""
+
+    ledger_file: str = "luna/data/identity_ledger.jsonl"
+    founding_docs: tuple[str, ...] = (
+        "docs/FOUNDERS_MEMO.md",
+        "docs/LUNA_CONSTITUTION.md",
+        "docs/FOUNDING_EPISODES.md",
+    )
+    recovery_enabled: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class APISection:
     """Configuration for the REST API."""
 
@@ -169,7 +186,6 @@ class LunaConfig:
     luna: LunaSection
     consciousness: ConsciousnessSection
     memory: MemorySection
-    pipeline: PipelineSection
     observability: ObservabilitySection
     heartbeat: HeartbeatSection
     llm: LLMSection = field(default_factory=LLMSection)
@@ -179,7 +195,9 @@ class LunaConfig:
     metrics: MetricsSection = field(default_factory=MetricsSection)
     fingerprint: FingerprintSection = field(default_factory=FingerprintSection)
     safety: SafetySection = field(default_factory=SafetySection)
+    identity: IdentitySection = field(default_factory=IdentitySection)
     api: APISection = field(default_factory=APISection)
+    cognitive_loop: CognitiveLoopSection = field(default_factory=CognitiveLoopSection)
 
     # Absolute root from which relative paths are resolved.
     root_dir: Path = field(default_factory=lambda: Path.cwd())
@@ -217,7 +235,6 @@ class LunaConfig:
             version=raw["luna"]["version"],
             agent_name=raw["luna"]["agent_name"],
             data_dir=raw["luna"]["data_dir"],
-            pipeline_dir=raw["luna"]["pipeline_dir"],
         )
 
         cs = raw.get("consciousness", {})
@@ -231,19 +248,6 @@ class LunaConfig:
             fractal_root=ms["fractal_root"],
             levels=ms.get("levels", ["seeds", "roots", "branches", "leaves"]),
             max_memories_per_level=ms.get("max_memories_per_level", 500),
-        )
-
-        ps = raw.get("pipeline", {})
-        pipeline = PipelineSection(
-            root=ps["root"],
-            poll_interval_seconds=ps.get("poll_interval_seconds", 1.0),
-            timeout_seconds=ps.get("timeout_seconds", 300.0),
-            autonomy=ps.get("autonomy", "supervised"),
-            sayohmy_path=ps.get("sayohmy_path", "~/SAYOHMY"),
-            sentinel_path=ps.get("sentinel_path", "~/SENTINEL"),
-            testengineer_path=ps.get("testengineer_path", "~/TESTENGINEER"),
-            agent_timeout=ps.get("agent_timeout", 120.0),
-            runner_enabled=ps.get("runner_enabled", False),
         )
 
         obs = raw.get("observability", {})
@@ -273,9 +277,19 @@ class LunaConfig:
             max_tokens=llm_raw.get("max_tokens", 4096),
             temperature=llm_raw.get("temperature", 0.7),
         )
+        if llm.api_key is not None:
+            log.warning(
+                "api_key set in config file %s — prefer environment "
+                "variables to avoid accidental commit",
+                path,
+            )
 
         orch_raw = raw.get("orchestrator", {})
+        # autonomy was in [pipeline], now in [orchestrator] (backward compat)
+        ps = raw.get("pipeline", {})
+        autonomy = orch_raw.get("autonomy", ps.get("autonomy", "supervised"))
         orchestrator = OrchestratorSection(
+            autonomy=autonomy,
             llm_augment=orch_raw.get("llm_augment", True),
             max_cycles=orch_raw.get("max_cycles", 0),
             checkpoint_interval=orch_raw.get("checkpoint_interval", 1),
@@ -334,6 +348,17 @@ class LunaConfig:
             watchdog_threshold=safety_raw.get("watchdog_threshold", 3),
         )
 
+        id_raw = raw.get("identity", {})
+        identity = IdentitySection(
+            ledger_file=id_raw.get("ledger_file", "luna/data/identity_ledger.jsonl"),
+            founding_docs=tuple(id_raw.get("founding_docs", [
+                "docs/FOUNDERS_MEMO.md",
+                "docs/LUNA_CONSTITUTION.md",
+                "docs/FOUNDING_EPISODES.md",
+            ])),
+            recovery_enabled=id_raw.get("recovery_enabled", True),
+        )
+
         api_raw = raw.get("api", {})
         api = APISection(
             host=api_raw.get("host", "127.0.0.1"),
@@ -344,11 +369,18 @@ class LunaConfig:
             trusted_proxies=tuple(api_raw.get("trusted_proxies", [])),
         )
 
+        cl_raw = raw.get("cognitive_loop", {})
+        cognitive_loop = CognitiveLoopSection(
+            tick_interval=cl_raw.get("tick_interval", 18.54),
+            max_tick_interval=cl_raw.get("max_tick_interval", 60.0),
+            autosave_ticks=cl_raw.get("autosave_ticks", 10),
+            idle_dream_threshold=cl_raw.get("idle_dream_threshold", 7200.0),
+        )
+
         return LunaConfig(
             luna=luna,
             consciousness=consciousness,
             memory=memory,
-            pipeline=pipeline,
             observability=observability,
             heartbeat=heartbeat,
             llm=llm,
@@ -358,6 +390,8 @@ class LunaConfig:
             metrics=metrics,
             fingerprint=fingerprint,
             safety=safety,
+            identity=identity,
             api=api,
+            cognitive_loop=cognitive_loop,
             root_dir=root_dir,
         )

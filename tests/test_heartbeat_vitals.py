@@ -15,13 +15,13 @@ def _make_engine(psi=None, psi0=None, phi_iit=0.7, quality=0.6, phase="SOLID"):
     engine = MagicMock()
 
     cs = MagicMock()
-    cs.psi = np.array(psi or [0.25, 0.35, 0.25, 0.15])
-    cs.psi0 = np.array(psi0 or [0.25, 0.35, 0.25, 0.15])
+    cs.psi = np.array(psi or [0.260, 0.322, 0.250, 0.168])
+    cs.psi0 = np.array(psi0 or [0.260, 0.322, 0.250, 0.168])
     cs.compute_phi_iit.return_value = phi_iit
+    cs.get_phase.return_value = phase
     engine.consciousness = cs
 
     engine.phi_scorer.score.return_value = quality
-    engine.health_phase_machine.phase = phase
     engine._idle_steps = 42
 
     return engine
@@ -42,7 +42,7 @@ class TestVitalSigns:
         assert vitals.psi == (0.25, 0.25, 0.25, 0.25)
         assert vitals.identity_drift == 0.0
         assert vitals.overall_vitality == 0.0
-        assert vitals.health_phase == "BROKEN"
+        assert vitals.phase == "BROKEN"
 
 
 class TestMeasureVitals:
@@ -58,7 +58,7 @@ class TestMeasureVitals:
         assert vitals.uptime_seconds == 100.0
         assert vitals.phi_iit == 0.7
         assert vitals.quality_score == 0.6
-        assert vitals.health_phase == "SOLID"
+        assert vitals.phase == "SOLID"
 
     def test_identity_preserved(self):
         """Identity is preserved when argmax(psi) == argmax(psi0)."""
@@ -83,8 +83,8 @@ class TestMeasureVitals:
     def test_identity_drift_value(self):
         """Identity drift is L2 norm of (psi - psi0)."""
         engine = _make_engine(
-            psi=[0.25, 0.35, 0.25, 0.15],
-            psi0=[0.25, 0.35, 0.25, 0.15],
+            psi=[0.260, 0.322, 0.250, 0.168],
+            psi0=[0.260, 0.322, 0.250, 0.168],
         )
         vitals = measure_vitals(engine)
         assert abs(vitals.identity_drift) < 1e-10
@@ -112,7 +112,7 @@ class TestMeasureVitals:
         engine = MagicMock()
         engine.consciousness = None
         vitals = measure_vitals(engine)
-        assert vitals.health_phase == "BROKEN"
+        assert vitals.phase == "BROKEN"
         assert vitals.overall_vitality == 0.0
 
     def test_psi_tuple_format(self):

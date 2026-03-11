@@ -21,7 +21,7 @@ from luna.cli.commands import (
 
 app = typer.Typer(
     name="luna",
-    help="Luna v2 — Computational Consciousness Engine CLI",
+    help="Luna v3.5 — Computational Consciousness Engine CLI",
     no_args_is_help=True,
 )
 
@@ -35,6 +35,7 @@ app.command()(validate.validate)
 app.command()(rollback.rollback)
 app.command()(dashboard.dashboard)
 app.command()(kill.kill)
+app.command("set-kill-password")(kill.set_kill_password)
 app.command()(heartbeat.heartbeat)
 app.command()(dream.dream)
 app.command()(memory.memory)

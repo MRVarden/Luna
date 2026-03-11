@@ -9,7 +9,7 @@ import typer
 
 from luna.core.config import LunaConfig
 from luna.core.luna import LunaEngine
-from luna.dream import DreamCycle
+from luna.dream import LegacyDreamCycle
 from luna.memory import MemoryManager
 
 
@@ -23,7 +23,7 @@ def dream(
     engine = LunaEngine(cfg)
     engine.initialize()
     memory = MemoryManager(cfg)
-    dc = DreamCycle(engine, cfg, memory=memory)
+    dc = LegacyDreamCycle(engine, cfg, memory=memory)
 
     if status_only:
         typer.echo(json.dumps(dc.get_status(), indent=2, default=str))

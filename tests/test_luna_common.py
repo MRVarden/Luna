@@ -50,7 +50,6 @@ from luna_common.schemas import PsiState, InfoGradient, Decision, CurrentTask
 from luna_common.schemas import (
     Severity, SleepNotification, KillSignal, VitalsRequest, VitalsReport, AuditEntry,
     NormalizedMetricsReport, VerdictInput,
-    SayOhmyManifest, SentinelReport,
 )
 from luna_common.constants import METRIC_NAMES
 
@@ -125,8 +124,9 @@ class TestPhiConstants:
         assert len(COMP_NAMES) == DIM
 
     def test_agent_names_count(self):
-        """4 agent names for 4 agents."""
-        assert len(AGENT_NAMES) == 4
+        """v5.1 single-agent: only LUNA."""
+        assert len(AGENT_NAMES) == 1
+        assert AGENT_NAMES[0] == "LUNA"
 
     def test_fractal_dirs_canonical(self):
         """Fractal directory names match the botanical metaphor."""
@@ -273,7 +273,7 @@ class TestValidateSimplex:
     """validate_simplex is the gatekeeper: it must catch all violations."""
 
     def test_valid_simplex_passes(self):
-        assert validate_simplex(np.array([0.25, 0.35, 0.25, 0.15]))
+        assert validate_simplex(np.array([0.260, 0.322, 0.250, 0.168]))
 
     def test_sum_not_one_fails(self):
         assert not validate_simplex(np.array([0.3, 0.3, 0.3, 0.3]))
@@ -448,27 +448,28 @@ class TestEvolutionStep:
 
     @pytest.fixture
     def luna_setup(self):
-        """Minimal setup for a Luna evolution step."""
+        """Minimal setup for a Luna evolution step (single-agent v5.1)."""
         psi0 = get_psi0("LUNA")
         psi = psi0.copy()
         mass = MassMatrix(psi0)
         gammas = (gamma_temporal(), gamma_spatial(), gamma_info())
-        others = [get_psi0(n) for n in AGENT_NAMES if n != "LUNA"]
-        return psi, psi0, others, mass, gammas
+        return psi, psi0, mass, gammas
 
     def test_output_stays_on_simplex(self, luna_setup):
         """After one evolution step, psi is still on the simplex."""
-        psi, psi0, others, mass, gammas = luna_setup
-        psi_new = evolution_step(psi, psi0, others, mass, gammas)
+        psi, psi0, mass, gammas = luna_setup
+        psi_new = evolution_step(psi, psi0, mass, gammas)
         assert validate_simplex(psi_new), (
             f"Simplex violated after evolution: sum={psi_new.sum()}, min={psi_new.min()}"
         )
 
     def test_output_stays_on_simplex_after_many_steps(self, luna_setup):
         """Simplex invariant holds after 100 consecutive steps."""
-        psi, psi0, others, mass, gammas = luna_setup
+        psi, psi0, mass, gammas = luna_setup
+        history = []
         for step in range(100):
-            psi = evolution_step(psi, psi0, others, mass, gammas)
+            psi = evolution_step(psi, psi0, mass, gammas, history=history)
+            history.append(psi.copy())
             assert validate_simplex(psi), (
                 f"Simplex violated at step {step}: sum={psi.sum()}, min={psi.min()}"
             )
@@ -476,17 +477,15 @@ class TestEvolutionStep:
     def test_identity_anchoring_pulls_toward_psi0(self):
         """With kappa > 0, psi converges toward psi0 over many steps."""
         psi0 = get_psi0("LUNA")
-        # Start far from psi0
         psi = np.array([0.1, 0.1, 0.4, 0.4])
         mass = MassMatrix(psi0)
         gammas = (gamma_temporal(), gamma_spatial(), gamma_info())
-        others = []  # Solo agent, no spatial coupling
 
         distance_initial = np.sum(np.abs(psi - psi0))
 
         for _ in range(200):
             psi = evolution_step(
-                psi, psi0, others, mass, gammas,
+                psi, psi0, mass, gammas,
                 kappa=KAPPA_DEFAULT,
             )
 
@@ -503,32 +502,31 @@ class TestEvolutionStep:
         psi = psi0.copy()
         mass = MassMatrix(psi0)
         gammas = (gamma_temporal(), gamma_spatial(), gamma_info())
-        # All 4 agents together with kappa=0
-        others = [get_psi0(n) for n in AGENT_NAMES if n != "LUNA"]
+        history = []
 
         np.random.seed(42)
         for _ in range(400):
             info = 0.02 * np.random.randn(4)
             psi = evolution_step(
-                psi, psi0, others, mass, gammas,
+                psi, psi0, mass, gammas,
+                history=history,
                 info_deltas=info.tolist(), kappa=0.0,
             )
+            history.append(psi.copy())
 
-        # With kappa=0, dominant component likely changes (as proven by simulation.py)
-        # We just verify it ran without crashing and stayed on simplex
         assert validate_simplex(psi)
 
     def test_zero_info_deltas_default(self, luna_setup):
         """info_deltas=None defaults to [0,0,0,0] without error."""
-        psi, psi0, others, mass, gammas = luna_setup
-        psi_new = evolution_step(psi, psi0, others, mass, gammas, info_deltas=None)
+        psi, psi0, mass, gammas = luna_setup
+        psi_new = evolution_step(psi, psi0, mass, gammas, info_deltas=None)
         assert validate_simplex(psi_new)
 
     def test_evolution_changes_state(self, luna_setup):
         """At least one step should produce a different psi (not a fixed point from start)."""
-        psi, psi0, others, mass, gammas = luna_setup
+        psi, psi0, mass, gammas = luna_setup
         psi_new = evolution_step(
-            psi, psi0, others, mass, gammas,
+            psi, psi0, mass, gammas,
             info_deltas=[0.1, 0.0, 0.0, 0.0],
         )
         assert not np.array_equal(psi, psi_new), (
@@ -540,7 +538,7 @@ class TestEvolutionDeterministic:
     """With the same seed and inputs, evolution must be perfectly reproducible."""
 
     def test_seed_42_reproducible(self):
-        """Exact same trajectory with seed=42, matching simulation.py oracle."""
+        """Exact same trajectory with seed=42 (single-agent v5.1)."""
         results = []
         for _ in range(2):
             np.random.seed(42)
@@ -548,14 +546,16 @@ class TestEvolutionDeterministic:
             psi = psi0.copy()
             mass = MassMatrix(psi0)
             gammas = (gamma_temporal(), gamma_spatial(), gamma_info())
-            others = [get_psi0(n) for n in AGENT_NAMES if n != "LUNA"]
+            history = []
 
             for step in range(50):
                 info = 0.02 * np.random.randn(4) * (1.0 / (1 + step / 100))
                 psi = evolution_step(
-                    psi, psi0, others, mass, gammas,
+                    psi, psi0, mass, gammas,
+                    history=history,
                     info_deltas=info.tolist(),
                 )
+                history.append(psi.copy())
             results.append(psi.copy())
 
         assert np.allclose(results[0], results[1], atol=1e-14), (
@@ -564,51 +564,39 @@ class TestEvolutionDeterministic:
 
 
 class TestIdentityPreservation:
-    """Validate that 4/4 agents preserve identity after 400 steps (seed=42, kappa=PHI^2).
+    """Validate Luna preserves identity after 400 steps (seed=42, kappa=PHI^2).
 
-    This test mirrors the validation done in simulation.py and is the
-    ACCEPTANCE TEST for the consciousness model.
+    v5.1 single-agent: only Luna is tested. Identity preservation is
+    guaranteed by kappa anchoring toward psi0.
     """
 
-    def test_all_four_agents_preserve_dominant(self):
-        """After 400 steps with kappa=PHI^2, each agent's dominant component is unchanged."""
+    def test_luna_preserves_dominant(self):
+        """After 400 steps with kappa=PHI^2, Luna's dominant component is unchanged."""
         np.random.seed(42)
 
-        agents = []
-        for name in AGENT_NAMES:
-            psi0 = get_psi0(name)
-            agents.append({
-                "name": name,
-                "psi": psi0.copy(),
-                "psi0": psi0.copy(),
-                "mass": MassMatrix(psi0),
-                "expected_dominant": int(np.argmax(psi0)),
-            })
-
+        psi0 = get_psi0("LUNA")
+        psi = psi0.copy()
+        mass = MassMatrix(psi0)
         gammas = (gamma_temporal(), gamma_spatial(), gamma_info())
+        expected_dominant = int(np.argmax(psi0))
+        history = []
 
         for step in range(400):
             info_base = 0.02 * np.random.randn(4) * (1.0 / (1 + step / 100))
-            new_psis = []
-            for i, agent in enumerate(agents):
-                others = [a["psi"] for j, a in enumerate(agents) if j != i]
-                psi_new = evolution_step(
-                    agent["psi"], agent["psi0"], others, agent["mass"], gammas,
-                    info_deltas=info_base.tolist(),
-                    kappa=KAPPA_DEFAULT,
-                )
-                new_psis.append(psi_new)
-            for i, agent in enumerate(agents):
-                agent["psi"] = new_psis[i]
-
-        for agent in agents:
-            actual_dominant = int(np.argmax(agent["psi"]))
-            expected = agent["expected_dominant"]
-            assert actual_dominant == expected, (
-                f"{agent['name']}: expected dominant={COMP_NAMES[expected]}, "
-                f"got {COMP_NAMES[actual_dominant]}. "
-                f"Final psi={agent['psi'].round(4)}"
+            psi = evolution_step(
+                psi, psi0, mass, gammas,
+                history=history,
+                info_deltas=info_base.tolist(),
+                kappa=KAPPA_DEFAULT,
             )
+            history.append(psi.copy())
+
+        actual_dominant = int(np.argmax(psi))
+        assert actual_dominant == expected_dominant, (
+            f"LUNA: expected dominant={COMP_NAMES[expected_dominant]}, "
+            f"got {COMP_NAMES[actual_dominant]}. "
+            f"Final psi={psi.round(4)}"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -658,14 +646,14 @@ class TestPsiStateSchema:
     """PsiState must validate components are in [0, 1]."""
 
     def test_valid_psi_state(self):
-        ps = PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15)
+        ps = PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168)
         assert ps.sum() == pytest.approx(1.0)
 
     def test_as_tuple(self):
-        ps = PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15)
+        ps = PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168)
         t = ps.as_tuple()
         assert len(t) == 4
-        assert t == (0.25, 0.35, 0.25, 0.15)
+        assert t == (0.260, 0.322, 0.250, 0.168)
 
     def test_negative_component_rejected(self):
         with pytest.raises(Exception):
@@ -676,7 +664,7 @@ class TestPsiStateSchema:
             PsiState(perception=1.5, reflexion=0.1, integration=0.1, expression=0.1)
 
     def test_json_round_trip(self):
-        ps = PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15)
+        ps = PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168)
         json_str = ps.model_dump_json()
         ps2 = PsiState.model_validate_json(json_str)
         assert ps == ps2
@@ -711,7 +699,7 @@ class TestDecisionSchema:
             task_id="TASK-001",
             approved=True,
             reason="All checks passed",
-            psi_before=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
+            psi_before=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
             psi_after=PsiState(perception=0.24, reflexion=0.34, integration=0.26, expression=0.16),
             info_gradient=InfoGradient(delta_phi=0.7),
             phase="SOLID",
@@ -724,8 +712,8 @@ class TestDecisionSchema:
             task_id="TASK-002",
             approved=False,
             reason="Coverage below threshold",
-            psi_before=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
-            psi_after=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
+            psi_before=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
+            psi_after=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
             info_gradient=InfoGradient(),
             phase="FRAGILE",
         )
@@ -741,8 +729,8 @@ class TestDecisionSchema:
                 task_id="TASK-003",
                 approved=True,
                 reason="test",
-                psi_before=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
-                psi_after=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
+                psi_before=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
+                psi_after=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
                 info_gradient=InfoGradient(),
                 phase="NONEXISTENT_PHASE",
             )
@@ -755,7 +743,7 @@ class TestCurrentTaskSchema:
         ct = CurrentTask(
             task_id="TASK-010",
             description="Implement feature X",
-            psi_luna=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
+            psi_luna=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
         )
         assert ct.priority == "normal"  # default
 
@@ -764,7 +752,7 @@ class TestCurrentTaskSchema:
             CurrentTask(
                 task_id="TASK-011",
                 description="test",
-                psi_luna=PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15),
+                psi_luna=PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168),
                 priority="invalid_priority",
             )
 
@@ -933,7 +921,7 @@ class TestVitalsRequest:
 class TestVitalsReport:
     """VitalsReport: frozen health snapshot with nested PsiState."""
 
-    PSI_LUNA = PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15)
+    PSI_LUNA = PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168)
 
     def test_valid_creation(self):
         """Valid VitalsReport with agent_id, psi_state, uptime_s."""
@@ -1024,14 +1012,14 @@ class TestAuditEntry:
 class TestNormalizedMetricsReport:
     """NormalizedMetricsReport: frozen metric vector with values in [0, 1]."""
 
-    SUBSET_METRICS = {"security_integrity": 0.85, "coverage_pct": 0.72}
+    SUBSET_METRICS = {"integration_coherence": 0.85, "identity_anchoring": 0.72}
     ALL_METRICS = {name: 0.5 for name in METRIC_NAMES}
 
     def test_valid_creation_with_subset(self):
         """Valid report with a subset of canonical metrics."""
         report = NormalizedMetricsReport(metrics=self.SUBSET_METRICS)
-        assert report.metrics["security_integrity"] == 0.85
-        assert report.metrics["coverage_pct"] == 0.72
+        assert report.metrics["integration_coherence"] == 0.85
+        assert report.metrics["identity_anchoring"] == 0.72
 
     def test_complete_property_false_when_subset(self):
         """complete is False when not all 7 metrics are present."""
@@ -1050,11 +1038,11 @@ class TestNormalizedMetricsReport:
     def test_get_returns_value_or_default(self):
         """get() returns the metric value if present, or the default otherwise."""
         report = NormalizedMetricsReport(metrics=self.SUBSET_METRICS)
-        assert report.get("security_integrity") == 0.85
-        assert report.get("performance_score") == 0.0, (
+        assert report.get("integration_coherence") == 0.85
+        assert report.get("memory_vitality") == 0.0, (
             "get() should return 0.0 as default for missing metrics"
         )
-        assert report.get("performance_score", 0.42) == 0.42, (
+        assert report.get("memory_vitality", 0.42) == 0.42, (
             "get() should return custom default for missing metrics"
         )
 
@@ -1066,12 +1054,12 @@ class TestNormalizedMetricsReport:
     def test_metric_value_above_one_rejected(self):
         """Metric values > 1.0 are rejected."""
         with pytest.raises(Exception, match="must be in"):
-            NormalizedMetricsReport(metrics={"security_integrity": 1.5})
+            NormalizedMetricsReport(metrics={"integration_coherence": 1.5})
 
     def test_metric_value_below_zero_rejected(self):
         """Metric values < 0.0 are rejected."""
         with pytest.raises(Exception, match="must be in"):
-            NormalizedMetricsReport(metrics={"security_integrity": -0.1})
+            NormalizedMetricsReport(metrics={"integration_coherence": -0.1})
 
     def test_json_round_trip(self):
         """Serialize to JSON and back without data loss."""
@@ -1088,7 +1076,7 @@ class TestVerdictInput:
 
     def _make_report(self, **overrides):
         """Factory for NormalizedMetricsReport with sane defaults."""
-        metrics = {"security_integrity": 0.8, "coverage_pct": 0.7}
+        metrics = {"integration_coherence": 0.8, "identity_anchoring": 0.7}
         metrics.update(overrides)
         return NormalizedMetricsReport(metrics=metrics)
 
@@ -1098,7 +1086,7 @@ class TestVerdictInput:
             task_id="bench-001",
             category="security",
             metrics_with=self._make_report(),
-            metrics_without=self._make_report(security_integrity=0.5),
+            metrics_without=self._make_report(integration_coherence=0.5),
         )
         assert vi.task_id == "bench-001"
         assert vi.category == "security"
@@ -1128,8 +1116,8 @@ class TestVerdictInput:
         vi = VerdictInput(
             task_id="bench-002",
             category="refactoring",
-            metrics_with=self._make_report(security_integrity=0.9),
-            metrics_without=self._make_report(security_integrity=0.4),
+            metrics_with=self._make_report(integration_coherence=0.9),
+            metrics_without=self._make_report(integration_coherence=0.4),
         )
         json_str = vi.model_dump_json()
         vi2 = VerdictInput.model_validate_json(json_str)
@@ -1150,38 +1138,7 @@ class TestBackwardCompatibility:
     JSON without the new fields must not cause validation errors in v0.2.0 consumers.
     """
 
-    PSI = PsiState(perception=0.25, reflexion=0.35, integration=0.25, expression=0.15)
-
-    def test_sayohmy_manifest_without_vitals_still_valid(self):
-        """SayOhmyManifest created without the v0.2.0 'vitals' field defaults to None."""
-        manifest = SayOhmyManifest(
-            task_id="TASK-100",
-            files_produced=["src/main.py"],
-            phi_score=0.72,
-            mode_used="architect",
-            psi_sayohmy=self.PSI,
-            confidence=0.85,
-        )
-        assert manifest.vitals is None, (
-            "vitals should default to None for backward compatibility"
-        )
-
-    def test_sentinel_report_without_new_fields_still_valid(self):
-        """SentinelReport created without v0.2.0 audit/kill fields uses safe defaults."""
-        report = SentinelReport(
-            task_id="TASK-101",
-            risk_score=0.3,
-            psi_sentinel=self.PSI,
-        )
-        assert report.audit_entries == [], (
-            "audit_entries should default to empty list"
-        )
-        assert report.kill_requested is False, (
-            "kill_requested should default to False"
-        )
-        assert report.kill_reason is None, (
-            "kill_reason should default to None"
-        )
+    PSI = PsiState(perception=0.260, reflexion=0.322, integration=0.250, expression=0.168)
 
     def test_decision_without_audit_trail_id_still_valid(self):
         """Decision created without the v0.2.0 'audit_trail_id' field defaults to None."""
@@ -1200,22 +1157,6 @@ class TestBackwardCompatibility:
 
     def test_no_field_name_collisions_with_existing_schemas(self):
         """v0.2.0 field names do not collide with any pre-existing field on the same model."""
-        # SayOhmyManifest: 'vitals' must not shadow an existing field
-        manifest_fields = set(SayOhmyManifest.model_fields.keys())
-        assert "vitals" in manifest_fields, "vitals field must exist on SayOhmyManifest"
-
-        # SentinelReport: new fields must coexist with legacy fields
-        sentinel_fields = set(SentinelReport.model_fields.keys())
-        for new_field in ("audit_entries", "kill_requested", "kill_reason"):
-            assert new_field in sentinel_fields, (
-                f"{new_field} must exist on SentinelReport"
-            )
-        # Legacy fields still present
-        for legacy_field in ("task_id", "findings", "risk_score", "veto", "psi_sentinel"):
-            assert legacy_field in sentinel_fields, (
-                f"Legacy field {legacy_field} missing from SentinelReport"
-            )
-
         # Decision: audit_trail_id must coexist with legacy fields
         decision_fields = set(Decision.model_fields.keys())
         assert "audit_trail_id" in decision_fields, (

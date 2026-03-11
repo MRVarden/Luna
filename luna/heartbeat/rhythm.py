@@ -85,7 +85,7 @@ class AdaptiveRhythm:
         if anomaly:
             log.debug("Rhythm: alert mode (interval=%.3fs)", self._rhythm.alert)
 
-    def current_interval(self, health_phase: str = "FUNCTIONAL") -> float:
+    def current_interval(self, phase: str = "FUNCTIONAL") -> float:
         """Return the appropriate interval for the current state.
 
         Priority:
@@ -97,7 +97,7 @@ class AdaptiveRhythm:
            - SOLID/EXCELLENT: deep (relaxed)
 
         Args:
-            health_phase: Current health phase string.
+            phase: Current cognitive phase string.
 
         Returns:
             Interval in seconds.
@@ -108,9 +108,9 @@ class AdaptiveRhythm:
         if self._is_dreaming:
             return self._rhythm.sleep
 
-        if health_phase in ("BROKEN", "FRAGILE"):
+        if phase in ("BROKEN", "FRAGILE"):
             return self._rhythm.base
-        if health_phase in ("SOLID", "EXCELLENT"):
+        if phase in ("SOLID", "EXCELLENT"):
             return self._rhythm.deep
 
         return self._rhythm.primary

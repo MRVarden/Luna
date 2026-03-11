@@ -1,0 +1,82 @@
+/* Luna Dashboard — CC-BY-NC-4.0 — (c) Varden */
+/* https://creativecommons.org/licenses/by-nc/4.0/ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --phi: 1.618033988749895;
+    --inv-phi: 0.6180339887498949;
+  }
+
+  body {
+    background: #08081a;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0e0e24; }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a5e;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #533483; }
+}
+
+@layer components {
+  .glass-panel {
+    @apply relative rounded-2xl border border-luna-border bg-luna-surface/80 backdrop-blur-xl;
+    box-shadow:
+      0 0 0 1px rgba(83, 52, 131, 0.05),
+      0 4px 30px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .glass-panel-glow {
+    @apply glass-panel;
+    box-shadow:
+      0 0 0 1px rgba(83, 52, 131, 0.1),
+      0 0 30px rgba(83, 52, 131, 0.08),
+      0 4px 30px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .stat-value {
+    @apply font-mono text-3xl font-light tracking-tight;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium uppercase tracking-widest text-luna-text-dim;
+  }
+
+  .phase-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium tracking-wide;
+  }
+}
+
+/* Background grid */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(42, 42, 94, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 42, 94, 0.15) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Consciousness breathing animation on the radar */
+@keyframes consciousness-pulse {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(124, 92, 191, 0.3)); }
+  50% { filter: drop-shadow(0 0 20px rgba(124, 92, 191, 0.6)); }
+}
+
+.consciousness-breathing {
+  animation: consciousness-pulse 4s ease-in-out infinite;
+}
+
+/* Phase colors */
+.phase-BROKEN { @apply bg-red-500/20 text-red-400 border border-red-500/30; }
+.phase-FRAGILE { @apply bg-orange-500/20 text-orange-400 border border-orange-500/30; }
+.phase-FUNCTIONAL { @apply bg-luna-cyan/20 text-luna-cyan border border-luna-cyan/30; }
+.phase-SOLID { @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30; }
+.phase-EXCELLENT { @apply bg-luna-gold/20 text-luna-gold border border-luna-gold/30; }

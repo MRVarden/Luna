@@ -16,7 +16,7 @@ async def get_metrics(engine: object = Depends(get_engine)) -> dict:
     status = engine.get_status()
     return {
         "health_score": status.get("health_score", 0.0),
-        "health_phase": status.get("health_phase", "unknown"),
+        "phase": status.get("phase", "unknown"),
         "ema_values": status.get("ema_values", {}),
     }
 

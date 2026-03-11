@@ -21,7 +21,7 @@ from luna_common.constants import (
 from luna_common.consciousness.simplex import validate_simplex
 from luna_common.schemas import (
     Decision, PsiState, InfoGradient,
-    SayOhmyManifest, SentinelReport, IntegrationCheck,
+    IntegrationCheck,
 )
 
 # -- Try importing LunaEngine and its dependencies --
@@ -53,8 +53,6 @@ if LunaConfig is None:
 #  HELPERS
 # ===================================================================
 
-_PSI_SAYOHMY = PsiState(perception=0.15, reflexion=0.15, integration=0.20, expression=0.50)
-_PSI_SENTINEL = PsiState(perception=0.50, reflexion=0.20, integration=0.20, expression=0.10)
 _PSI_TE = PsiState(perception=0.15, reflexion=0.20, integration=0.50, expression=0.15)
 
 
@@ -81,7 +79,6 @@ def config(tmp_path):
         luna=cfg.luna,
         consciousness=new_cs,
         memory=cfg.memory,
-        pipeline=cfg.pipeline,
         observability=cfg.observability,
         heartbeat=cfg.heartbeat,
         root_dir=tmp_path,
@@ -98,33 +95,31 @@ def engine(config):
 
 @pytest.fixture
 def sample_manifest():
-    """A minimal SayOhMy manifest for pipeline testing."""
-    return SayOhmyManifest(
-        task_id="TEST-001",
-        files_produced=["luna/core/config.py"],
-        phi_score=0.72,
-        mode_used="architect",
-        psi_sayohmy=_PSI_SAYOHMY,
-        confidence=0.85,
-    )
+    """A minimal SayOhMy manifest dict for pipeline testing."""
+    return {
+        "task_id": "TEST-001",
+        "files_produced": ["luna/core/config.py"],
+        "phi_score": 0.72,
+        "mode_used": "architect",
+        "confidence": 0.85,
+    }
 
 
 @pytest.fixture
 def sample_sentinel_report():
-    """A minimal SENTINEL report for pipeline testing."""
-    return SentinelReport(
-        task_id="TEST-001",
-        findings=[],
-        risk_score=0.1,
-        veto=False,
-        psi_sentinel=_PSI_SENTINEL,
-        scanners_used=["bandit", "ruff"],
-    )
+    """A minimal SENTINEL report dict for pipeline testing."""
+    return {
+        "task_id": "TEST-001",
+        "findings": [],
+        "risk_score": 0.1,
+        "veto": False,
+        "scanners_used": ["bandit", "ruff"],
+    }
 
 
 @pytest.fixture
 def sample_integration_check():
-    """A minimal Test-Engineer integration check for pipeline testing."""
+    """A minimal integration check for pipeline testing."""
     return IntegrationCheck(
         task_id="TEST-001",
         cross_checks=[],
@@ -278,34 +273,32 @@ class TestPipelineProcessing:
 
 
 # ===================================================================
-#  III. SENTINEL VETO HANDLING
+#  III. VETO HANDLING
 # ===================================================================
 
-class TestSentinelVeto:
-    """When SENTINEL vetoes, the engine must reject the pipeline output."""
+class TestVetoHandling:
+    """When a security review vetoes, the engine must reject the output."""
 
     def test_veto_produces_rejected_decision(
         self, engine, sample_manifest, sample_integration_check
     ):
-        """A SENTINEL veto leads to approved=False."""
-        veto_report = SentinelReport(
-            task_id="TEST-VETO",
-            findings=[{"type": "critical_vuln", "severity": "HIGH"}],
-            risk_score=0.95,
-            veto=True,
-            veto_reason="Critical security vulnerability detected",
-            psi_sentinel=_PSI_SENTINEL,
-            scanners_used=["bandit"],
-        )
+        """A veto leads to approved=False."""
+        veto_report = {
+            "task_id": "TEST-VETO",
+            "findings": [{"type": "critical_vuln", "severity": "HIGH"}],
+            "risk_score": 0.95,
+            "veto": True,
+            "veto_reason": "Critical security vulnerability detected",
+            "scanners_used": ["bandit"],
+        }
         # Update manifest task_id to match
-        manifest = SayOhmyManifest(
-            task_id="TEST-VETO",
-            files_produced=["luna/core/config.py"],
-            phi_score=0.72,
-            mode_used="architect",
-            psi_sayohmy=_PSI_SAYOHMY,
-            confidence=0.85,
-        )
+        manifest = {
+            "task_id": "TEST-VETO",
+            "files_produced": ["luna/core/config.py"],
+            "phi_score": 0.72,
+            "mode_used": "architect",
+            "confidence": 0.85,
+        }
         ic = IntegrationCheck(
             task_id="TEST-VETO",
             cross_checks=[],
@@ -320,7 +313,7 @@ class TestSentinelVeto:
             integration_check=ic,
         )
         assert decision.approved is False, (
-            "SENTINEL veto should force approved=False"
+            "Veto should force approved=False"
         )
 
 
@@ -390,22 +383,20 @@ class TestMultipleCycles:
         decisions = []
         for i in range(3):
             # Update task_id for each cycle
-            m = SayOhmyManifest(
-                task_id=f"CYCLE-{i}",
-                files_produced=["luna/core/config.py"],
-                phi_score=0.72,
-                mode_used="architect",
-                psi_sayohmy=_PSI_SAYOHMY,
-                confidence=0.85,
-            )
-            sr = SentinelReport(
-                task_id=f"CYCLE-{i}",
-                findings=[],
-                risk_score=0.1,
-                veto=False,
-                psi_sentinel=_PSI_SENTINEL,
-                scanners_used=["bandit"],
-            )
+            m = {
+                "task_id": f"CYCLE-{i}",
+                "files_produced": ["luna/core/config.py"],
+                "phi_score": 0.72,
+                "mode_used": "architect",
+                "confidence": 0.85,
+            }
+            sr = {
+                "task_id": f"CYCLE-{i}",
+                "findings": [],
+                "risk_score": 0.1,
+                "veto": False,
+                "scanners_used": ["bandit"],
+            }
             ic = IntegrationCheck(
                 task_id=f"CYCLE-{i}",
                 cross_checks=[],
@@ -437,22 +428,20 @@ class TestMultipleCycles:
             integration_check=sample_integration_check,
         )
         # Need a second cycle with different task_id
-        m2 = SayOhmyManifest(
-            task_id="SEQ-2",
-            files_produced=["luna/core/config.py"],
-            phi_score=0.72,
-            mode_used="architect",
-            psi_sayohmy=_PSI_SAYOHMY,
-            confidence=0.85,
-        )
-        sr2 = SentinelReport(
-            task_id="SEQ-2",
-            findings=[],
-            risk_score=0.1,
-            veto=False,
-            psi_sentinel=_PSI_SENTINEL,
-            scanners_used=["bandit"],
-        )
+        m2 = {
+            "task_id": "SEQ-2",
+            "files_produced": ["luna/core/config.py"],
+            "phi_score": 0.72,
+            "mode_used": "architect",
+            "confidence": 0.85,
+        }
+        sr2 = {
+            "task_id": "SEQ-2",
+            "findings": [],
+            "risk_score": 0.1,
+            "veto": False,
+            "scanners_used": ["bandit"],
+        }
         ic2 = IntegrationCheck(
             task_id="SEQ-2",
             cross_checks=[],

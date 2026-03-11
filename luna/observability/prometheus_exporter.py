@@ -74,7 +74,7 @@ class PrometheusExporter:
         if "quality_score" in vitals:
             self.gauge("quality_score", vitals["quality_score"], "Code quality score")
         if "phi_iit" in vitals:
-            self.gauge("phi_iit", vitals["phi_iit"], "PHI IIT consciousness measure")
+            self.gauge("phi_iit", vitals["phi_iit"], "PHI IIT cognitive integration measure")
         if "idle_steps" in vitals:
             self.counter("idle_steps_total", vitals["idle_steps"], "Total idle steps")
 

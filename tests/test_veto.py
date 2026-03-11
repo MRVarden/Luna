@@ -22,15 +22,8 @@ from luna_common.phi_engine.veto import (
 )
 
 
-# --- Lightweight stubs for SentinelReport and IntegrationCheck ---
+# --- Lightweight stub for IntegrationCheck ---
 # Avoid importing the full Pydantic schemas just for veto tests.
-
-@dataclass
-class _StubSentinelReport:
-    veto: bool = False
-    risk_score: float = 0.1
-    veto_reason: str | None = None
-
 
 @dataclass
 class _StubIntegrationCheck:
@@ -58,12 +51,12 @@ class TestVetoEvent:
     def test_veto_event_creation(self):
         """Required fields set correctly, defaults applied."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.HIGH,
             confidence=0.7,
             finding="SQL injection detected",
         )
-        assert event.source == "SENTINEL"
+        assert event.source == "security_review"
         assert event.severity == Severity.HIGH
         assert event.confidence == 0.7
         assert event.finding == "SQL injection detected"
@@ -73,7 +66,7 @@ class TestVetoEvent:
     def test_veto_event_non_contestable(self):
         """CRITICAL + confidence > 0.95 -> contestable=False."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.CRITICAL,
             confidence=0.98,
             finding="RCE vulnerability",
@@ -84,7 +77,7 @@ class TestVetoEvent:
     def test_veto_event_contestable(self):
         """HIGH severity -> contestable=True."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.HIGH,
             confidence=0.6,
             finding="Potential XSS",
@@ -94,26 +87,26 @@ class TestVetoEvent:
 
 
 class TestBuildVetoEvent:
-    """Validate build_veto_event() from SentinelReport."""
+    """Validate build_veto_event() from sentinel report dict."""
 
     def test_build_veto_event_from_report(self):
-        """SentinelReport(veto=True) -> VetoEvent with correct severity."""
-        report = _StubSentinelReport(
-            veto=True,
-            risk_score=0.85,
-            veto_reason="Critical vulnerability found",
-        )
+        """sentinel_report dict(veto=True) -> VetoEvent with correct severity."""
+        report = {
+            "veto": True,
+            "risk_score": 0.85,
+            "veto_reason": "Critical vulnerability found",
+        }
         event = build_veto_event(report)
 
         assert event is not None
-        assert event.source == "SENTINEL"
+        assert event.source == "security_review"
         assert event.severity == Severity.CRITICAL  # risk >= 0.8
         assert event.confidence == 0.85
         assert event.finding == "Critical vulnerability found"
 
     def test_build_veto_event_high_severity(self):
         """risk_score in [0.5, 0.8) -> HIGH severity."""
-        report = _StubSentinelReport(veto=True, risk_score=0.6, veto_reason="medium risk")
+        report = {"veto": True, "risk_score": 0.6, "veto_reason": "medium risk"}
         event = build_veto_event(report)
 
         assert event is not None
@@ -121,21 +114,21 @@ class TestBuildVetoEvent:
 
     def test_build_veto_event_medium_severity(self):
         """risk_score < 0.5 -> MEDIUM severity."""
-        report = _StubSentinelReport(veto=True, risk_score=0.3, veto_reason="low risk")
+        report = {"veto": True, "risk_score": 0.3, "veto_reason": "low risk"}
         event = build_veto_event(report)
 
         assert event is not None
         assert event.severity == Severity.MEDIUM
 
     def test_build_veto_event_no_veto(self):
-        """SentinelReport(veto=False) -> None."""
-        report = _StubSentinelReport(veto=False, risk_score=0.1)
+        """sentinel_report dict(veto=False) -> None."""
+        report = {"veto": False, "risk_score": 0.1}
         event = build_veto_event(report)
         assert event is None
 
     def test_build_veto_event_contestable_critical_high_confidence(self):
         """CRITICAL + confidence > 0.95 -> non-contestable."""
-        report = _StubSentinelReport(veto=True, risk_score=0.97, veto_reason="RCE")
+        report = {"veto": True, "risk_score": 0.97, "veto_reason": "RCE"}
         event = build_veto_event(report)
 
         assert event is not None
@@ -144,7 +137,7 @@ class TestBuildVetoEvent:
 
     def test_build_veto_event_unspecified_reason(self):
         """None veto_reason -> finding = 'unspecified'."""
-        report = _StubSentinelReport(veto=True, risk_score=0.5, veto_reason=None)
+        report = {"veto": True, "risk_score": 0.5, "veto_reason": None}
         event = build_veto_event(report)
 
         assert event is not None
@@ -166,7 +159,7 @@ class TestResolveVeto:
     def test_resolve_veto_not_contested(self):
         """Veto without contestation -> blocked."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.HIGH,
             confidence=0.7,
             finding="XSS detected",
@@ -175,12 +168,12 @@ class TestResolveVeto:
         resolution = resolve_veto(event, check, "FUNCTIONAL")
 
         assert resolution.vetoed is True
-        assert "SENTINEL veto: XSS detected" in resolution.reason
+        assert "Veto: XSS detected" in resolution.reason
 
     def test_resolve_veto_contested_with_evidence(self):
         """Contestable veto + contested with evidence -> approved."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.HIGH,
             confidence=0.6,
             finding="Potential XSS",
@@ -194,12 +187,12 @@ class TestResolveVeto:
 
         assert resolution.vetoed is False
         assert resolution.contested is True
-        assert "contested by Test-Engineer" in resolution.reason
+        assert "Veto contested:" in resolution.reason
 
     def test_resolve_veto_non_contestable_even_if_contested(self):
-        """Non-contestable veto -> blocked even if Test-Engineer contests."""
+        """Non-contestable veto -> blocked even if contested."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.CRITICAL,
             confidence=0.98,
             finding="RCE vulnerability",
@@ -225,7 +218,7 @@ class TestResolveVeto:
     def test_resolve_phase_broken_with_veto(self):
         """Phase BROKEN + veto -> blocked (BROKEN takes priority)."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.HIGH,
             confidence=0.7,
             finding="issue",
@@ -239,7 +232,7 @@ class TestResolveVeto:
     def test_resolve_contested_without_evidence(self):
         """Contested but no evidence -> blocked (case 4)."""
         event = VetoEvent(
-            source="SENTINEL",
+            source="security_review",
             severity=Severity.MEDIUM,
             confidence=0.4,
             finding="minor issue",

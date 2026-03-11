@@ -47,7 +47,7 @@ class TestRedisMetricsStore:
 
     def test_publish_psi(self, store):
         """publish_psi stores Psi vector."""
-        store.publish_psi([0.25, 0.35, 0.25, 0.15])
+        store.publish_psi([0.260, 0.322, 0.250, 0.168])
         result = store.get("psi")
         assert "0.25" in result
 

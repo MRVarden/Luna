@@ -47,7 +47,7 @@ class TestMetricTrackerRecord:
         """record() returns a MetricEntry with correct fields."""
         tracker = _make_tracker()
         entry = tracker.record(
-            "security_integrity", 0.9, MetricSource.MEASURED, pipeline_id="p-001"
+            "integration_coherence", 0.9, MetricSource.MEASURED, pipeline_id="p-001"
         )
         assert isinstance(entry, MetricEntry)
         assert entry.value == 0.9
@@ -64,10 +64,10 @@ class TestMetricTrackerRecord:
     def test_record_overwrites_latest(self):
         """Multiple records for the same metric keep only the latest."""
         tracker = _make_tracker()
-        tracker.record("coverage_pct", 0.3, MetricSource.BOOTSTRAP)
-        tracker.record("coverage_pct", 0.8, MetricSource.MEASURED)
+        tracker.record("identity_anchoring", 0.3, MetricSource.BOOTSTRAP)
+        tracker.record("identity_anchoring", 0.8, MetricSource.MEASURED)
 
-        entry = tracker.get("coverage_pct")
+        entry = tracker.get("identity_anchoring")
         assert entry is not None
         assert entry.value == 0.8
         assert entry.source == MetricSource.MEASURED
@@ -79,13 +79,13 @@ class TestMetricTrackerGet:
     def test_get_unrecorded_returns_none(self):
         """Getting a metric that was never recorded returns None."""
         tracker = _make_tracker()
-        assert tracker.get("security_integrity") is None
+        assert tracker.get("integration_coherence") is None
 
     def test_get_after_record_returns_entry(self):
         """Getting a recorded metric returns the entry."""
         tracker = _make_tracker()
-        tracker.record("security_integrity", 0.75, MetricSource.MEASURED)
-        entry = tracker.get("security_integrity")
+        tracker.record("integration_coherence", 0.75, MetricSource.MEASURED)
+        entry = tracker.get("integration_coherence")
         assert entry is not None
         assert entry.value == 0.75
 
@@ -126,7 +126,7 @@ class TestBootstrapRatio:
         assert tracker.bootstrap_ratio() == pytest.approx(1.0)
 
         # Replace one with MEASURED
-        tracker.record("security_integrity", 0.9, MetricSource.MEASURED)
+        tracker.record("integration_coherence", 0.9, MetricSource.MEASURED)
         assert tracker.bootstrap_ratio() == pytest.approx(6 / 7, abs=1e-6)
 
 
@@ -141,10 +141,10 @@ class TestMeasuredCount:
     def test_measured_count_counts_only_measured(self):
         """Only MEASURED source recordings are counted."""
         tracker = _make_tracker()
-        tracker.record("security_integrity", 0.5, MetricSource.BOOTSTRAP)
-        tracker.record("coverage_pct", 0.7, MetricSource.MEASURED)
-        tracker.record("coverage_pct", 0.8, MetricSource.MEASURED)  # second time
-        tracker.record("complexity_score", 0.6, MetricSource.DREAM)
+        tracker.record("integration_coherence", 0.5, MetricSource.BOOTSTRAP)
+        tracker.record("identity_anchoring", 0.7, MetricSource.MEASURED)
+        tracker.record("identity_anchoring", 0.8, MetricSource.MEASURED)  # second time
+        tracker.record("reflection_depth", 0.6, MetricSource.DREAM)
 
         assert tracker.measured_count() == 2, (
             "Only the two MEASURED recordings should be counted"
@@ -157,7 +157,7 @@ class TestGetStatus:
     def test_get_status_returns_well_formed_dict(self):
         """get_status() returns dict with expected top-level keys."""
         tracker = _make_tracker()
-        tracker.record("security_integrity", 0.9, MetricSource.MEASURED)
+        tracker.record("integration_coherence", 0.9, MetricSource.MEASURED)
 
         status = tracker.get_status()
         assert "bootstrap_ratio" in status
@@ -168,11 +168,11 @@ class TestGetStatus:
     def test_get_status_latest_contains_recorded_entries(self):
         """The 'latest' sub-dict reflects what was recorded."""
         tracker = _make_tracker()
-        tracker.record("security_integrity", 0.9, MetricSource.MEASURED, pipeline_id="p-1")
+        tracker.record("integration_coherence", 0.9, MetricSource.MEASURED, pipeline_id="p-1")
 
         latest = tracker.get_status()["latest"]
-        assert "security_integrity" in latest
-        entry = latest["security_integrity"]
+        assert "integration_coherence" in latest
+        entry = latest["integration_coherence"]
         assert entry["value"] == 0.9
         assert entry["source"] == "measured"
         assert entry["pipeline_id"] == "p-1"
@@ -184,14 +184,14 @@ class TestSnapshotSources:
     def test_snapshot_sources_returns_source_strings(self):
         """Returns a dict mapping metric name to source string."""
         tracker = _make_tracker()
-        tracker.record("security_integrity", 0.9, MetricSource.MEASURED)
-        tracker.record("coverage_pct", 0.5, MetricSource.BOOTSTRAP)
-        tracker.record("complexity_score", 0.6, MetricSource.DREAM)
+        tracker.record("integration_coherence", 0.9, MetricSource.MEASURED)
+        tracker.record("identity_anchoring", 0.5, MetricSource.BOOTSTRAP)
+        tracker.record("reflection_depth", 0.6, MetricSource.DREAM)
 
         sources = tracker.snapshot_sources()
-        assert sources["security_integrity"] == "measured"
-        assert sources["coverage_pct"] == "bootstrap"
-        assert sources["complexity_score"] == "dream"
+        assert sources["integration_coherence"] == "measured"
+        assert sources["identity_anchoring"] == "bootstrap"
+        assert sources["reflection_depth"] == "dream"
 
     def test_snapshot_sources_empty_when_nothing_recorded(self):
         """Empty tracker returns empty dict."""

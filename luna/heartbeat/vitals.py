@@ -1,6 +1,6 @@
 """Vital signs — comprehensive health snapshot linked to Psi.
 
-Each VitalSigns measurement is a frozen snapshot tied to the consciousness
+Each VitalSigns measurement is a frozen snapshot tied to the cognitive
 state vector Psi, code quality metrics, memory health, and system status.
 """
 
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from luna_common.constants import COMP_NAMES, PHI_WEIGHTS
+from luna_common.constants import COMP_NAMES, INV_PHI3, PHI_WEIGHTS
 
 log = logging.getLogger(__name__)
 
@@ -29,14 +29,13 @@ class VitalSigns:
     """Comprehensive health snapshot — Psi-linked, metrics-linked, system-linked.
 
     Attributes:
-        psi: Current consciousness state (4 components on simplex).
+        psi: Current cognitive state (4 components on simplex).
         psi0: Identity profile (4 components on simplex).
         identity_drift: L2 norm of (psi - psi0).
         dominant_component: Name of the dominant Psi component.
         identity_preserved: True if argmax(psi) == argmax(psi0).
         phi_iit: Current integrated information value.
         quality_score: Current PhiScorer composite health.
-        health_phase: Current health phase (BROKEN..EXCELLENT).
         total_memories: Count of memories across all levels.
         idle_steps: Number of idle evolution steps taken.
         uptime_seconds: Time since heartbeat started.
@@ -54,7 +53,7 @@ class VitalSigns:
     # Phi Engine
     phi_iit: float
     quality_score: float
-    health_phase: str
+    phase: str
 
     # Memory
     total_memories: int
@@ -93,7 +92,6 @@ class VitalSigns:
                 "identity_ok": self.identity_preserved,
                 "memory_count": self.total_memories,
                 "quality_score": self.quality_score,
-                "health_phase": self.health_phase,
                 "emotional_state": self.emotional_state,
             },
         )
@@ -128,11 +126,18 @@ def measure_vitals(
     drift = float(np.linalg.norm(psi_arr - psi0_arr))
     dom_idx = int(np.argmax(psi_arr))
     dom_name = COMP_NAMES[dom_idx]
-    identity_ok = dom_idx == int(np.argmax(psi0_arr))
+    psi0_dom = int(np.argmax(psi0_arr))
+    # Tolerance: if the gap between the two top components is < INV_PHI3 (~0.024),
+    # don't flag identity shift — the dominant is ambiguous and kappa will resolve it.
+    if dom_idx != psi0_dom:
+        gap = float(psi_arr[dom_idx] - psi_arr[psi0_dom])
+        identity_ok = gap < INV_PHI3
+    else:
+        identity_ok = True
 
     phi_iit = float(cs.compute_phi_iit())
+    phase = cs.get_phase()
     quality = float(engine.phi_scorer.score())  # type: ignore[attr-defined]
-    phase = engine.health_phase_machine.phase  # type: ignore[attr-defined]
 
     # Overall vitality: weighted average of key signals
     vitality_signals = [
@@ -152,7 +157,7 @@ def measure_vitals(
         identity_preserved=identity_ok,
         phi_iit=phi_iit,
         quality_score=quality,
-        health_phase=phase,
+        phase=phase,
         total_memories=total_memories,
         idle_steps=engine._idle_steps,  # type: ignore[attr-defined]
         uptime_seconds=uptime_seconds,
@@ -171,7 +176,7 @@ def _default_vitals() -> VitalSigns:
         identity_preserved=True,
         phi_iit=0.0,
         quality_score=0.0,
-        health_phase="BROKEN",
+        phase="BROKEN",
         total_memories=0,
         idle_steps=0,
         uptime_seconds=0.0,

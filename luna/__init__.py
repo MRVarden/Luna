@@ -3,7 +3,7 @@
 Architecture:
     luna/
     ├── core/           # LunaEngine, config (TOML)
-    ├── consciousness/  # ConsciousnessState, checkpoints, Phi_IIT
+    ├── consciousness/  # Cognitive state, checkpoints, Phi_IIT
     ├── phi_engine/     # Re-exports from luna_common.phi_engine
     ├── llm_bridge/     # Provider-agnostic LLM cognitive substrate
     ├── pipeline/       # Filesystem JSON protocol between agents
@@ -18,4 +18,4 @@ Shared library (imported, never modified):
     luna_common/        # Matrices, evolution, schemas, constants, phi_engine
 """
 
-__version__ = "2.2.0-dev"
+__version__ = "5.3.0"
