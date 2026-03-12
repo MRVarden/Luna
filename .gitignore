@@ -227,6 +227,8 @@ test_*.json
 *.gif
 !docs/images/
 !docs/images/**
+!docs/screenshots/
+!docs/screenshots/**
 
 *.html
 !docs/**/*.html
