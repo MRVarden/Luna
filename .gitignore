@@ -227,6 +227,8 @@ test_*.json
 *.gif
 !docs/images/
 !docs/images/**
+!docs/Architecture/
+!docs/Architecture/**
 !docs/screenshots/
 !docs/screenshots/**
 
